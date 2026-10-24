@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Camera, Leaf } from "lucide-react";
+import { AlertTriangle, Bell, Camera, ChevronRight, Leaf } from "lucide-react";
 import ItemCard from "@/components/ItemCard";
 import RecipesScreen from "@/components/RecipesScreen";
 import SettingsScreen from "@/components/SettingsScreen";
 import TabBar, { type Tab } from "@/components/TabBar";
 import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
 import { fileToResizedBase64 } from "@/lib/image";
-import { loadPantry, savePantry, toPantryItem, type PantryItem, type ParsedItem } from "@/lib/pantry";
+import { demoPantry } from "@/lib/demo";
+import { notificationPermission, notifyExpiring, requestNotifications } from "@/lib/notify";
+import { daysLeft, loadPantry, savePantry, toPantryItem, type PantryItem, type ParsedItem } from "@/lib/pantry";
 import { applyRecipeMade, type Recipe } from "@/lib/recipes";
 import { loadRestrictions, saveRestrictions, type RestrictionId } from "@/lib/restrictions";
 
@@ -26,12 +28,39 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [restrictions, setRestrictions] = useState<RestrictionId[]>([]);
+  const [notifPerm, setNotifPerm] = useState<string>("unsupported");
 
   useEffect(() => {
     setItems(loadPantry());
     setRestrictions(loadRestrictions());
+    setNotifPerm(notificationPermission());
     setLoaded(true);
   }, []);
+
+  // Expired or expiring within 2 days, and not used up
+  const expiring = items
+    .filter((i) => i.quantityPercent > 0 && daysLeft(i) <= 2)
+    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+  const expiringNames = expiring.map((i) => i.name);
+  const expiringKey = expiringNames.join("|");
+
+  useEffect(() => {
+    if (loaded && expiringKey) notifyExpiring(expiringKey.split("|")); // at most once a day
+  }, [loaded, expiringKey]);
+
+  async function enableNotifications() {
+    const perm = await requestNotifications();
+    setNotifPerm(perm);
+    if (perm === "granted") notifyExpiring(expiringNames, { force: true });
+  }
+
+  function loadDemo() {
+    if (items.length && !confirm("Replace your pantry with demo data?")) return;
+    update(demoPantry());
+    setTab("pantry");
+    setError(null);
+    setNotice("Demo pantry loaded 🎉");
+  }
 
   function update(next: PantryItem[]) {
     setItems(next);
@@ -93,6 +122,14 @@ export default function Home() {
               <span className="text-sm text-stone-400">{items.length} items</span>
             )}
           </div>
+          {expiring.length > 0 && (
+            <ExpiringBanner
+              names={expiringNames}
+              canEnableNotifications={notifPerm === "default"}
+              onOpen={() => setTab("recipes")}
+              onEnableNotifications={enableNotifications}
+            />
+          )}
         </header>
 
         <main className="flex-1 overflow-y-auto overscroll-contain px-4 pb-32 pt-2">
@@ -112,11 +149,21 @@ export default function Home() {
               )}
 
               {loaded && items.length === 0 && !loading ? (
-                <EmptyState
-                  icon={Camera}
-                  title="Scan a receipt to get started"
-                  body="Tap the green Scan button and snap your grocery receipt. We'll list your food and when it goes bad."
-                />
+                <>
+                  <EmptyState
+                    icon={Camera}
+                    title="Scan a receipt to get started"
+                    body="Tap the green Scan button and snap your grocery receipt. We'll list your food and when it goes bad."
+                  />
+                  <div className="mt-4 flex justify-center">
+                    <button
+                      onClick={loadDemo}
+                      className="min-h-11 rounded-full px-4 text-sm font-medium text-green-700 transition active:scale-95 active:bg-green-50"
+                    >
+                      or load demo data
+                    </button>
+                  </div>
+                </>
               ) : (
                 <ul className="space-y-3">
                   {sorted.map((item) => (
@@ -127,6 +174,11 @@ export default function Home() {
                       onDelete={() => update(items.filter((i) => i.id !== item.id))}
                     />
                   ))}
+                  {items.length > 0 && (
+                    <li className="px-2 pt-2 text-center text-xs text-stone-400">
+                      🛒 Reorder opens Google Shopping. Real store integration is planned.
+                    </li>
+                  )}
                 </ul>
               )}
           </div>
@@ -141,7 +193,7 @@ export default function Home() {
           </div>
 
           <div className={tab === "settings" ? "animate-fade-up" : "hidden"}>
-            <SettingsScreen restrictions={restrictions} onChange={updateRestrictions} />
+            <SettingsScreen restrictions={restrictions} onChange={updateRestrictions} onLoadDemo={loadDemo} />
           </div>
         </main>
 
@@ -165,6 +217,43 @@ function ScanningState() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ExpiringBanner({
+  names,
+  canEnableNotifications,
+  onOpen,
+  onEnableNotifications,
+}: {
+  names: string[];
+  canEnableNotifications: boolean;
+  onOpen: () => void;
+  onEnableNotifications: () => void;
+}) {
+  return (
+    <div className="animate-fade-up mt-3 overflow-hidden rounded-2xl bg-amber-50 ring-1 ring-amber-200">
+      <button onClick={onOpen} className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition active:bg-amber-100">
+        <AlertTriangle size={18} className="shrink-0 text-amber-600" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-amber-900">
+            {names.length} item{names.length === 1 ? "" : "s"} expiring soon
+          </span>
+          <span className="block truncate text-xs text-amber-800/80">{names.join(", ")}</span>
+        </span>
+        <span className="flex shrink-0 items-center text-xs font-medium text-amber-800">
+          Recipes <ChevronRight size={14} />
+        </span>
+      </button>
+      {canEnableNotifications && (
+        <button
+          onClick={onEnableNotifications}
+          className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-amber-200 text-xs font-medium text-amber-900 transition active:bg-amber-100"
+        >
+          <Bell size={14} /> Remind me with notifications
+        </button>
+      )}
     </div>
   );
 }

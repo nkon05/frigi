@@ -1,15 +1,17 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { CARD } from "@/components/ui";
 import { RESTRICTIONS, type RestrictionId } from "@/lib/restrictions";
 
 export default function SettingsScreen({
   restrictions,
   onChange,
+  onLoadDemo,
 }: {
   restrictions: RestrictionId[];
   onChange: (r: RestrictionId[]) => void;
+  onLoadDemo: () => void;
 }) {
   function toggle(id: RestrictionId) {
     onChange(restrictions.includes(id) ? restrictions.filter((r) => r !== id) : [...restrictions, id]);
@@ -41,6 +43,18 @@ export default function SettingsScreen({
         })}
       </ul>
       <p className="mt-3 px-1 text-xs text-stone-400">Saved on this device.</p>
+
+      <h2 className="mt-8 px-1 text-sm font-semibold uppercase tracking-wide text-stone-400">Demo</h2>
+      <button
+        onClick={onLoadDemo}
+        className={`${CARD} mt-3 flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.98]`}
+      >
+        <Sparkles size={20} className="shrink-0 text-green-600" />
+        <span>
+          <span className="block font-medium text-stone-800">Load demo data</span>
+          <span className="block text-xs text-stone-500">Replaces your pantry with 10 sample items</span>
+        </span>
+      </button>
     </div>
   );
 }
