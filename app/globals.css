@@ -2,10 +2,55 @@
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cream: #faf7f0;
 }
 
+html,
 body {
-  background: #f1f5f4;
-  color: #0f172a;
+  background: #efeae0;
+  color: #1c1917;
+  overscroll-behavior: none; /* no rubber-band / pull-to-refresh on the shell */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Removes double-tap-to-zoom delay while keeping pinch-zoom for accessibility */
+* {
+  touch-action: manipulation;
+}
+
+button,
+label,
+a,
+nav {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* iOS zooms into inputs with font-size < 16px */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top), 0.75rem);
+}
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-up {
+  animation: fade-up 0.25s ease-out both;
 }

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -7,20 +7,22 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "frigi",
+  title: "FreshTrack",
   description: "Snap a grocery receipt and use your food before it goes bad.",
+  appleWebApp: { capable: true, title: "FreshTrack", statusBarStyle: "default" },
+  other: { "apple-mobile-web-app-capable": "yes" }, // Next only emits the generic tag; older iOS needs this one
+  icons: {
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#047857",
+  viewportFit: "cover",
+  themeColor: "#faf7f0",
 };
 
 export default function RootLayout({
@@ -30,11 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
-      >
-        {children}
-      </body>
+      <body className={`${geistSans.variable} font-sans antialiased`}>{children}</body>
     </html>
   );
 }
