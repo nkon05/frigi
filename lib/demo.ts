@@ -26,6 +26,8 @@ export function demoPantry(): PantryItem[] {
       price,
       purchaseDate,
       shelfLifeDays: ago + left,
+      shelfLifeSource: "ai",
+      freezerShelfLifeDays: null,
       expiryDate: addDays(today, left),
       storageTip,
       quantityPercent,

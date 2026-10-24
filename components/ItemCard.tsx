@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { HeartHandshake, Lightbulb, Minus, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
-import { daysBetween, daysLeft, formatDate, type PantryItem } from "@/lib/pantry";
+import { BadgeCheck, HeartHandshake, Lightbulb, Minus, Pencil, Plus, ShoppingCart, Sparkles, Trash2 } from "lucide-react";
+import { daysBetween, daysLeft, formatDate, type PantryItem, type ShelfLifeSource } from "@/lib/pantry";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   produce: "🥬",
@@ -98,7 +98,12 @@ export default function ItemCard({
                 onChange={(e) => {
                   const v = e.target.value;
                   if (!v) return;
-                  onChange({ ...item, expiryDate: v, shelfLifeDays: daysBetween(item.purchaseDate, v) });
+                  onChange({
+                    ...item,
+                    expiryDate: v,
+                    shelfLifeDays: daysBetween(item.purchaseDate, v),
+                    shelfLifeSource: "manual",
+                  });
                 }}
                 className="min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3"
               />
@@ -114,6 +119,7 @@ export default function ItemCard({
               </button>
             )}
           </div>
+          <SourceBadge source={item.shelfLifeSource} />
 
           <div className="-ml-3 mt-1 flex items-center gap-1">
             <QtyButton label={`Less ${item.name}`} disabled={item.quantityPercent <= 0} onClick={() => setQty(item.quantityPercent - 25)}>
@@ -186,5 +192,21 @@ function QtyButton({
     >
       {children}
     </button>
+  );
+}
+
+const SOURCE = {
+  usda: { label: "USDA", icon: BadgeCheck, cls: "text-green-700", title: "Shelf life from USDA FoodKeeper" },
+  ai: { label: "AI estimate", icon: Sparkles, cls: "text-stone-400", title: "No USDA match, so shelf life is AI-estimated" },
+  manual: { label: "Edited", icon: Pencil, cls: "text-stone-500", title: "You set this expiry date" },
+};
+
+function SourceBadge({ source }: { source: ShelfLifeSource }) {
+  const { label, icon: Icon, cls, title } = SOURCE[source] ?? SOURCE.ai;
+  return (
+    <p title={title} className={`mt-1.5 flex items-center gap-1 text-[11px] font-medium ${cls}`}>
+      <Icon size={12} />
+      {label}
+    </p>
   );
 }

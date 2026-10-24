@@ -209,6 +209,8 @@ export default function Home() {
                   {items.length > 0 && (
                     <li className="px-2 pt-2 text-center text-xs text-stone-400">
                       🛒 Reorder opens Google Shopping. Real store integration is planned.
+                      <br />
+                      Shelf life from USDA FoodKeeper where available, otherwise AI-estimated.
                     </li>
                   )}
                 </ul>

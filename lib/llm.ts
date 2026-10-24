@@ -18,10 +18,12 @@ export async function generateJSON<T>({
   prompt,
   schema,
   image,
+  system,
 }: {
   prompt: string;
   schema: object;
   image?: { data: string; mimeType: string }; // base64, no data: prefix
+  system?: string; // stable instructions; sent as the system instruction so the provider can cache it
 }): Promise<T> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new LLMError("config", "GEMINI_API_KEY is not set on the server.");
@@ -37,6 +39,7 @@ export async function generateJSON<T>({
       model: MODEL,
       contents: [{ role: "user", parts }],
       config: {
+        ...(system ? { systemInstruction: system } : {}),
         responseMimeType: "application/json",
         responseSchema: schema as Schema,
       },

@@ -11,6 +11,9 @@ export const CATEGORIES = [
 
 export type Category = (typeof CATEGORIES)[number];
 
+// usda = USDA FoodKeeper match, ai = model estimate, manual = user edited the expiry date
+export type ShelfLifeSource = "usda" | "ai" | "manual";
+
 // Shape returned by /api/parse-receipt
 export type ParsedItem = {
   rawName: string;
@@ -18,6 +21,8 @@ export type ParsedItem = {
   category: Category;
   price: number | null;
   shelfLifeDays: number;
+  shelfLifeSource: ShelfLifeSource;
+  freezerShelfLifeDays: number | null; // from FoodKeeper when matched, for a future "freeze to extend"
   storageTip: string;
 };
 
@@ -32,7 +37,9 @@ const STORAGE_KEY = "frigi.pantry";
 
 export function loadPantry(): PantryItem[] {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    const items: PantryItem[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    // Items saved before shelf-life sources existed were all AI estimates
+    return items.map((i) => ({ ...i, shelfLifeSource: i.shelfLifeSource ?? "ai", freezerShelfLifeDays: i.freezerShelfLifeDays ?? null }));
   } catch {
     return [];
   }

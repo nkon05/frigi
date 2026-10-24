@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { findFoodKeeper, FOODKEEPER_LIST, STORAGES, type Storage } from "@/lib/foodkeeper";
 import { generateJSON, LLMError, llmErrorStatus } from "@/lib/llm";
 import { CATEGORIES, type Category, type ParsedItem } from "@/lib/pantry";
 
@@ -12,10 +13,15 @@ Rules:
 - If the same item appears on multiple lines, list each line separately.
 - rawName is the line exactly as printed on the receipt.
 - price is the line price as a number (no currency symbol), or null if unreadable.
-- shelfLifeDays is a whole number of days the item stays good from purchase, ASSUMING PROPER STORAGE (fridge for perishables, freezer for frozen goods, pantry for shelf-stable).
+- storage is where this item is normally kept at home: "pantry", "refrigerator" or "freezer" (e.g. milk = refrigerator, canned beans = pantry, ice cream = freezer, bananas = pantry).
+- foodkeeperId is the id of the best matching product in the USDA FoodKeeper list below, or null if nothing is a good match. Match the actual product and form (e.g. fresh milk is not canned evaporated milk; chicken thighs = "Chicken parts (legs or thighs)"). Prefer null over a poor match.
+- shelfLifeDays is your own estimate: a whole number of days the item stays good from purchase, ASSUMING PROPER STORAGE in the chosen storage place.
 - storageTip is ONE short sentence on how to keep it fresh longest (e.g. "Keep unwashed in the fridge until ready to eat.").
 
-If the image is not a receipt or has no food items, return an empty array.`;
+If the image is not a receipt or has no food items, return an empty array.
+
+USDA FoodKeeper products (id|name):
+${FOODKEEPER_LIST}`;
 
 const SCHEMA = {
   type: "ARRAY",
@@ -26,11 +32,13 @@ const SCHEMA = {
       name: { type: "STRING" },
       category: { type: "STRING", enum: [...CATEGORIES] },
       price: { type: "NUMBER", nullable: true },
+      storage: { type: "STRING", enum: [...STORAGES] },
+      foodkeeperId: { type: "INTEGER", nullable: true },
       shelfLifeDays: { type: "INTEGER" },
       storageTip: { type: "STRING" },
     },
-    required: ["rawName", "name", "category", "price", "shelfLifeDays", "storageTip"],
-    propertyOrdering: ["rawName", "name", "category", "price", "shelfLifeDays", "storageTip"],
+    required: ["rawName", "name", "category", "price", "storage", "foodkeeperId", "shelfLifeDays", "storageTip"],
+    propertyOrdering: ["rawName", "name", "category", "price", "storage", "foodkeeperId", "shelfLifeDays", "storageTip"],
   },
 };
 
@@ -49,7 +57,8 @@ export async function POST(req: Request) {
 
   try {
     const data = await generateJSON<unknown>({
-      prompt: PROMPT,
+      system: PROMPT, // large and identical on every request, so it goes in the cacheable system instruction
+      prompt: "Extract the food items from this receipt.",
       schema: SCHEMA,
       image: { data: image, mimeType: mediaType },
     });
@@ -71,12 +80,39 @@ function cleanItems(data: unknown): ParsedItem[] | null {
   if (!Array.isArray(data)) return null;
   return data
     .filter((d) => d && typeof d.name === "string" && d.name.trim())
-    .map((d) => ({
-      rawName: String(d.rawName ?? d.name),
-      name: String(d.name).trim(),
-      category: (CATEGORIES as readonly string[]).includes(d.category) ? (d.category as Category) : "other",
-      price: typeof d.price === "number" ? d.price : Number.isFinite(parseFloat(d.price)) ? parseFloat(d.price) : null,
-      shelfLifeDays: Math.max(1, Math.round(Number(d.shelfLifeDays) || 7)),
-      storageTip: String(d.storageTip ?? ""),
-    }));
+    .map((d) => {
+      const category = (CATEGORIES as readonly string[]).includes(d.category) ? (d.category as Category) : "other";
+      const aiDays = Math.max(1, Math.round(Number(d.shelfLifeDays) || 7));
+      const shelfLife = usdaShelfLife(d.foodkeeperId, d.storage, category);
+      return {
+        rawName: String(d.rawName ?? d.name),
+        name: String(d.name).trim(),
+        category,
+        price: typeof d.price === "number" ? d.price : Number.isFinite(parseFloat(d.price)) ? parseFloat(d.price) : null,
+        shelfLifeDays: shelfLife.days ?? aiDays,
+        shelfLifeSource: shelfLife.days != null ? "usda" : "ai",
+        freezerShelfLifeDays: shelfLife.freezerDays,
+        storageTip: String(d.storageTip ?? ""),
+      };
+    });
+}
+
+// FoodKeeper days for the item's storage place, if the model's id is real and has a value there.
+// Any problem means { days: null } and the caller keeps the AI estimate.
+function usdaShelfLife(
+  foodkeeperId: unknown,
+  storage: unknown,
+  category: Category
+): { days: number | null; freezerDays: number | null } {
+  try {
+    const product = findFoodKeeper(foodkeeperId);
+    if (!product) return { days: null, freezerDays: null };
+    const place: Storage = (STORAGES as readonly string[]).includes(storage as string)
+      ? (storage as Storage)
+      : category === "frozen" ? "freezer" : category === "pantry" || category === "bakery" ? "pantry" : "refrigerator";
+    return { days: product[place], freezerDays: product.freezer };
+  } catch (err) {
+    console.error("FoodKeeper lookup failed:", err);
+    return { days: null, freezerDays: null };
+  }
 }
