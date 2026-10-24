@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lightbulb, Minus, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { HeartHandshake, Lightbulb, Minus, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { daysBetween, daysLeft, formatDate, type PantryItem } from "@/lib/pantry";
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -39,13 +39,16 @@ export default function ItemCard({
   item,
   onChange,
   onDelete,
+  onDonate,
 }: {
   item: PantryItem;
   onChange: (item: PantryItem) => void;
   onDelete: () => void;
+  onDonate: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const style = STYLES[urgency(item)];
+  const level = urgency(item);
+  const style = STYLES[level];
   const setQty = (q: number) => onChange({ ...item, quantityPercent: Math.min(100, Math.max(0, q)) });
 
   return (
@@ -135,6 +138,27 @@ export default function ItemCard({
               <Lightbulb size={14} className="mt-0.5 shrink-0 text-green-600" />
               {item.storageTip}
             </p>
+          )}
+
+          {/* Donate: prominent when expired or expiring within 2 days, subtle otherwise */}
+          {level === "red" ? (
+            <button
+              onClick={onDonate}
+              className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber-100 text-sm font-semibold text-amber-900 transition active:scale-95"
+            >
+              <HeartHandshake size={16} />
+              Donate it
+            </button>
+          ) : (
+            <div className="-mb-2 mt-1 flex justify-end">
+              <button
+                onClick={onDonate}
+                className="-mr-2 flex min-h-11 items-center gap-1 rounded-full px-2 text-xs font-medium text-stone-400 transition active:scale-95 active:bg-stone-100"
+              >
+                <HeartHandshake size={14} />
+                Donate
+              </button>
+            </div>
           )}
         </div>
       </div>

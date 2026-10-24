@@ -90,3 +90,16 @@ export function toPantryItem(p: ParsedItem, purchaseDate = todayISO()): PantryIt
     quantityPercent: 100,
   };
 }
+
+// Number of items marked as donated (for a future impact stats screen)
+const DONATED_KEY = "frigi.donatedCount";
+
+export function incrementDonatedCount(): number {
+  try {
+    const next = (Number(localStorage.getItem(DONATED_KEY)) || 0) + 1;
+    localStorage.setItem(DONATED_KEY, String(next));
+    return next;
+  } catch {
+    return 0;
+  }
+}

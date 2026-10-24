@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, Bell, Camera, ChevronLeft, ChevronRight, Leaf } from "lucide-react";
+import DonateSheet from "@/components/DonateSheet";
 import ItemCard from "@/components/ItemCard";
 import RecipesScreen from "@/components/RecipesScreen";
 import SettingsScreen from "@/components/SettingsScreen";
@@ -10,7 +11,7 @@ import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
 import { fileToResizedBase64 } from "@/lib/image";
 import { demoPantry } from "@/lib/demo";
 import { notificationPermission, notifyExpiring, requestNotifications } from "@/lib/notify";
-import { daysLeft, loadPantry, savePantry, toPantryItem, type PantryItem, type ParsedItem } from "@/lib/pantry";
+import { daysLeft, incrementDonatedCount, loadPantry, savePantry, toPantryItem, type PantryItem, type ParsedItem } from "@/lib/pantry";
 import { applyRecipeMade, type Recipe } from "@/lib/recipes";
 import { loadRestrictions, saveRestrictions, type RestrictionId } from "@/lib/restrictions";
 
@@ -30,6 +31,7 @@ export default function Home() {
   const [notice, setNotice] = useState<string | null>(null);
   const [restrictions, setRestrictions] = useState<RestrictionId[]>([]);
   const [notifPerm, setNotifPerm] = useState<string>("unsupported");
+  const [donating, setDonating] = useState<PantryItem | null>(null);
 
   useEffect(() => {
     setItems(loadPantry());
@@ -53,6 +55,14 @@ export default function Home() {
     const perm = await requestNotifications();
     setNotifPerm(perm);
     if (perm === "granted") notifyExpiring(expiringNames, { force: true });
+  }
+
+  function markDonated(item: PantryItem) {
+    update(items.filter((i) => i.id !== item.id));
+    incrementDonatedCount();
+    setDonating(null);
+    setError(null);
+    setNotice(`Thanks for donating ${item.name} 💚`);
   }
 
   function loadDemo() {
@@ -193,6 +203,7 @@ export default function Home() {
                       item={item}
                       onChange={(next) => update(items.map((i) => (i.id === next.id ? next : i)))}
                       onDelete={() => update(items.filter((i) => i.id !== item.id))}
+                      onDonate={() => setDonating(item)}
                     />
                   ))}
                   {items.length > 0 && (
@@ -226,6 +237,10 @@ export default function Home() {
         </main>
 
         <TabBar tab={tab} onTab={goTab} scanning={loading} onScan={handleFile} />
+
+        {donating && (
+          <DonateSheet item={donating} onClose={() => setDonating(null)} onDonated={() => markDonated(donating)} />
+        )}
       </div>
     </div>
   );
