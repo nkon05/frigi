@@ -11,7 +11,7 @@ export default function SettingsScreen({
 }: {
   restrictions: RestrictionId[];
   onChange: (r: RestrictionId[]) => void;
-  onLoadDemo: () => void;
+  onLoadDemo?: () => void; // omit to hide the Demo section (e.g. on the Recipes diet sub-screen)
 }) {
   function toggle(id: RestrictionId) {
     onChange(restrictions.includes(id) ? restrictions.filter((r) => r !== id) : [...restrictions, id]);
@@ -44,17 +44,21 @@ export default function SettingsScreen({
       </ul>
       <p className="mt-3 px-1 text-xs text-stone-400">Saved on this device.</p>
 
-      <h2 className="mt-8 px-1 text-sm font-semibold uppercase tracking-wide text-stone-400">Demo</h2>
-      <button
-        onClick={onLoadDemo}
-        className={`${CARD} mt-3 flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.98]`}
-      >
-        <Sparkles size={20} className="shrink-0 text-green-600" />
-        <span>
-          <span className="block font-medium text-stone-800">Load demo data</span>
-          <span className="block text-xs text-stone-500">Replaces your pantry with 10 sample items</span>
-        </span>
-      </button>
+      {onLoadDemo && (
+        <>
+          <h2 className="mt-8 px-1 text-sm font-semibold uppercase tracking-wide text-stone-400">Demo</h2>
+          <button
+            onClick={onLoadDemo}
+            className={`${CARD} mt-3 flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.98]`}
+          >
+            <Sparkles size={20} className="shrink-0 text-green-600" />
+            <span>
+              <span className="block font-medium text-stone-800">Load demo data</span>
+              <span className="block text-xs text-stone-500">Replaces your pantry with 10 sample items</span>
+            </span>
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Bell, Camera, ChevronRight, Leaf } from "lucide-react";
+import { AlertTriangle, Bell, Camera, ChevronLeft, ChevronRight, Leaf } from "lucide-react";
 import ItemCard from "@/components/ItemCard";
 import RecipesScreen from "@/components/RecipesScreen";
 import SettingsScreen from "@/components/SettingsScreen";
@@ -22,6 +22,7 @@ const TITLES: Record<Tab, string> = {
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("pantry");
+  const [dietOpen, setDietOpen] = useState(false); // allergies & diet sub-screen inside the Recipes tab
   const [items, setItems] = useState<PantryItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -57,9 +58,15 @@ export default function Home() {
   function loadDemo() {
     if (items.length && !confirm("Replace your pantry with demo data?")) return;
     update(demoPantry());
-    setTab("pantry");
+    goTab("pantry");
     setError(null);
     setNotice("Demo pantry loaded 🎉");
+  }
+
+  // Switching tabs always lands on the tab's main screen
+  function goTab(t: Tab) {
+    setTab(t);
+    setDietOpen(false);
   }
 
   function update(next: PantryItem[]) {
@@ -79,7 +86,7 @@ export default function Home() {
   }
 
   async function handleFile(file: File) {
-    setTab("pantry");
+    goTab("pantry");
     setLoading(true);
     setError(null);
     setNotice(null);
@@ -108,16 +115,30 @@ export default function Home() {
 
   const sorted = [...items].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
 
+  const showDiet = tab === "recipes" && dietOpen;
+
   return (
     <div className="mx-auto flex h-dvh max-w-[480px] flex-col bg-cream sm:shadow-2xl">
       <div className="relative flex min-h-0 flex-1 flex-col">
         <header className="pt-safe z-10 bg-cream/90 px-5 pb-3 backdrop-blur-lg">
-          <div className="flex items-center gap-1.5 text-green-700">
-            <Leaf size={16} strokeWidth={2.5} />
-            <span className="text-sm font-bold tracking-tight">FreshTrack</span>
-          </div>
+          {showDiet ? (
+            <button
+              onClick={() => setDietOpen(false)}
+              className="-ml-2 -my-2.5 flex min-h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-sm font-semibold text-green-700 transition active:scale-95 active:bg-green-50"
+            >
+              <ChevronLeft size={20} strokeWidth={2.5} />
+              Back
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 text-green-700">
+              <Leaf size={16} strokeWidth={2.5} />
+              <span className="text-sm font-bold tracking-tight">FreshTrack</span>
+            </div>
+          )}
           <div className="mt-1 flex items-baseline justify-between">
-            <h1 className="text-2xl font-bold tracking-tight text-stone-900">{TITLES[tab]}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-stone-900">
+              {showDiet ? "Allergies & diet" : TITLES[tab]}
+            </h1>
             {tab === "pantry" && items.length > 0 && (
               <span className="text-sm text-stone-400">{items.length} items</span>
             )}
@@ -126,7 +147,7 @@ export default function Home() {
             <ExpiringBanner
               names={expiringNames}
               canEnableNotifications={notifPerm === "default"}
-              onOpen={() => setTab("recipes")}
+              onOpen={() => goTab("recipes")}
               onEnableNotifications={enableNotifications}
             />
           )}
@@ -183,21 +204,28 @@ export default function Home() {
               )}
           </div>
 
-          <div className={tab === "recipes" ? "animate-fade-up" : "hidden"}>
+          {/* RecipesScreen stays mounted while the diet sub-screen is open, so recipes aren't lost */}
+          <div className={tab === "recipes" && !dietOpen ? "animate-fade-up" : "hidden"}>
             <RecipesScreen
               items={items}
               restrictions={restrictions}
               onMade={handleMade}
-              onEditSettings={() => setTab("settings")}
+              onEditSettings={() => setDietOpen(true)}
             />
           </div>
+
+          {showDiet && (
+            <div className="animate-fade-up">
+              <SettingsScreen restrictions={restrictions} onChange={updateRestrictions} />
+            </div>
+          )}
 
           <div className={tab === "settings" ? "animate-fade-up" : "hidden"}>
             <SettingsScreen restrictions={restrictions} onChange={updateRestrictions} onLoadDemo={loadDemo} />
           </div>
         </main>
 
-        <TabBar tab={tab} onTab={setTab} scanning={loading} onScan={handleFile} />
+        <TabBar tab={tab} onTab={goTab} scanning={loading} onScan={handleFile} />
       </div>
     </div>
   );
