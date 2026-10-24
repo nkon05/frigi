@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Camera, ChefHat, Leaf, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
+import { Camera, Leaf } from "lucide-react";
 import ItemCard from "@/components/ItemCard";
+import RecipesScreen from "@/components/RecipesScreen";
+import SettingsScreen from "@/components/SettingsScreen";
 import TabBar, { type Tab } from "@/components/TabBar";
+import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
 import { fileToResizedBase64 } from "@/lib/image";
 import { loadPantry, savePantry, toPantryItem, type PantryItem, type ParsedItem } from "@/lib/pantry";
+import { applyRecipeMade, type Recipe } from "@/lib/recipes";
+import { loadRestrictions, saveRestrictions, type RestrictionId } from "@/lib/restrictions";
 
 const TITLES: Record<Tab, string> = {
   pantry: "Your pantry",
@@ -20,15 +25,28 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [restrictions, setRestrictions] = useState<RestrictionId[]>([]);
 
   useEffect(() => {
     setItems(loadPantry());
+    setRestrictions(loadRestrictions());
     setLoaded(true);
   }, []);
 
   function update(next: PantryItem[]) {
     setItems(next);
     savePantry(next);
+  }
+
+  function updateRestrictions(next: RestrictionId[]) {
+    setRestrictions(next);
+    saveRestrictions(next);
+  }
+
+  function handleMade(recipe: Recipe): string[] {
+    const { next, updated } = applyRecipeMade(items, recipe);
+    update(next);
+    return updated;
   }
 
   async function handleFile(file: File) {
@@ -78,8 +96,8 @@ export default function Home() {
         </header>
 
         <main className="flex-1 overflow-y-auto overscroll-contain px-4 pb-32 pt-2">
-          {tab === "pantry" && (
-            <div key="pantry" className="animate-fade-up">
+          {/* All screens stay mounted (just hidden) so in-progress state survives tab switches */}
+          <div className={tab === "pantry" ? "animate-fade-up" : "hidden"}>
               {loading && <ScanningState />}
 
               {error && (
@@ -111,28 +129,20 @@ export default function Home() {
                   ))}
                 </ul>
               )}
-            </div>
-          )}
+          </div>
 
-          {tab === "recipes" && (
-            <div key="recipes" className="animate-fade-up">
-              <EmptyState
-                icon={ChefHat}
-                title="Recipes coming soon"
-                body="Soon you'll get recipe ideas that use up what's expiring first."
-              />
-            </div>
-          )}
+          <div className={tab === "recipes" ? "animate-fade-up" : "hidden"}>
+            <RecipesScreen
+              items={items}
+              restrictions={restrictions}
+              onMade={handleMade}
+              onEditSettings={() => setTab("settings")}
+            />
+          </div>
 
-          {tab === "settings" && (
-            <div key="settings" className="animate-fade-up">
-              <EmptyState
-                icon={SettingsIcon}
-                title="Settings coming soon"
-                body="Allergies and diet preferences will live here."
-              />
-            </div>
-          )}
+          <div className={tab === "settings" ? "animate-fade-up" : "hidden"}>
+            <SettingsScreen restrictions={restrictions} onChange={updateRestrictions} />
+          </div>
         </main>
 
         <TabBar tab={tab} onTab={setTab} scanning={loading} onScan={handleFile} />
@@ -144,15 +154,9 @@ export default function Home() {
 function ScanningState() {
   return (
     <div className="mb-4 space-y-3">
-      <div className="flex items-center gap-3 rounded-2xl bg-green-600 p-4 text-white shadow-lg shadow-green-600/20">
-        <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-white border-t-transparent" />
-        <div>
-          <p className="font-semibold">Reading your receipt...</p>
-          <p className="text-sm text-green-100">Finding food items and expiry dates</p>
-        </div>
-      </div>
+      <LoadingCard title="Reading your receipt..." subtitle="Finding food items and expiry dates" />
       {[0, 1, 2].map((i) => (
-        <div key={i} className="flex animate-pulse gap-3 rounded-2xl bg-white p-4 shadow-[0_2px_12px_rgba(28,25,23,0.06)]">
+        <div key={i} className={`${CARD} flex animate-pulse gap-3 p-4`}>
           <div className="h-12 w-12 rounded-xl bg-stone-100" />
           <div className="flex-1 space-y-2 py-1">
             <div className="h-4 w-2/3 rounded bg-stone-100" />
@@ -161,39 +165,6 @@ function ScanningState() {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function Banner({
-  tone,
-  children,
-  onClose,
-}: {
-  tone: "error" | "success";
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  const cls = tone === "error" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-800";
-  return (
-    <button
-      onClick={onClose}
-      className={`animate-fade-up mb-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left text-sm transition active:scale-[0.98] ${cls}`}
-    >
-      <span>{children}</span>
-      <span className="text-lg leading-none opacity-50">×</span>
-    </button>
-  );
-}
-
-function EmptyState({ icon: Icon, title, body }: { icon: LucideIcon; title: string; body: string }) {
-  return (
-    <div className="flex flex-col items-center px-6 pt-16 text-center">
-      <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-green-100 text-green-700">
-        <Icon size={36} />
-      </div>
-      <h2 className="text-lg font-semibold text-stone-800">{title}</h2>
-      <p className="mt-1 max-w-xs text-sm leading-relaxed text-stone-500">{body}</p>
     </div>
   );
 }
