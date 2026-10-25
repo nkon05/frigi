@@ -54,7 +54,7 @@ export default function SettingsScreen({
             <Sparkles size={20} className="shrink-0 text-green-600" />
             <span>
               <span className="block font-medium text-stone-800">Load demo data</span>
-              <span className="block text-xs text-stone-500">Replaces your pantry with 10 sample items</span>
+              <span className="block text-xs text-stone-500">Replaces your pantry and impact history with sample data</span>
             </span>
           </button>
         </>

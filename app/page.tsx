@@ -11,7 +11,7 @@ import SettingsScreen from "@/components/SettingsScreen";
 import TabBar, { type Tab } from "@/components/TabBar";
 import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
 import { fileToResizedBase64 } from "@/lib/image";
-import { demoPantry } from "@/lib/demo";
+import { demoHistory, demoPantry } from "@/lib/demo";
 import { historyEntry, loadHistory, saveHistory, type HistoryEntry, type Outcome } from "@/lib/history";
 import { notificationPermission, notifyExpiring, requestNotifications } from "@/lib/notify";
 import {
@@ -161,11 +161,16 @@ export default function Home() {
   }
 
   function loadDemo() {
-    if (items.length && !confirm("Replace your pantry with demo data?")) return;
+    // Never overwrite real data without asking
+    if ((items.length || history.length) && !confirm("Replace your pantry and impact history with demo data? This can't be undone.")) return;
     update(demoPantry());
+    const demo = demoHistory();
+    setHistory(demo);
+    saveHistory(demo);
+    setPantryView("main");
     goTab("pantry");
     setError(null);
-    setNotice("Demo pantry loaded 🎉");
+    setNotice("Demo data loaded 🎉 Check the Freezer and Impact tabs too.");
   }
 
   // Switching tabs always lands on the tab's main screen
