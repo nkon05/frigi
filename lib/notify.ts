@@ -1,36 +1,55 @@
-// Browser notifications via the Notification API only (no service worker, no push).
-// Shown at most once per day, when the app is opened.
+// System notifications via the service worker (public/sw.js). No server push.
+// registration.showNotification() works on Android Chrome, where `new Notification()` throws.
 
-const LAST_KEY = "frigi.lastNotified";
+export type NotifyStatus = "unsupported" | "default" | "denied" | "granted";
 
-export function notificationsSupported(): boolean {
-  return typeof window !== "undefined" && "Notification" in window;
+export function notifyStatus(): NotifyStatus {
+  if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) return "unsupported";
+  return Notification.permission;
 }
 
-export function notificationPermission(): NotificationPermission | "unsupported" {
-  return notificationsSupported() ? Notification.permission : "unsupported";
+export async function registerServiceWorker(): Promise<void> {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    await navigator.serviceWorker.register("/sw.js");
+  } catch (err) {
+    console.error("Service worker registration failed:", err);
+  }
 }
 
-export async function requestNotifications(): Promise<NotificationPermission | "unsupported"> {
-  if (!notificationsSupported()) return "unsupported";
+export async function requestNotifications(): Promise<NotifyStatus> {
+  if (notifyStatus() === "unsupported") return "unsupported";
   try {
     return await Notification.requestPermission();
   } catch {
-    return Notification.permission;
+    return notifyStatus();
   }
 }
 
-export function notifyExpiring(names: string[], { force = false } = {}) {
-  if (!names.length || notificationPermission() !== "granted") return;
-  const today = new Date().toDateString();
+// Returns true if a notification was shown
+export async function showNotification(title: string, body: string): Promise<boolean> {
+  if (notifyStatus() !== "granted") return false;
   try {
-    if (!force && localStorage.getItem(LAST_KEY) === today) return;
-    new Notification(`${names.length} item${names.length === 1 ? "" : "s"} expiring soon`, {
-      body: `Use them up: ${names.slice(0, 4).join(", ")}${names.length > 4 ? "…" : ""}`,
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(title, {
+      body,
       icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: "frigi-digest", // a newer digest replaces the old one instead of stacking
+      data: { url: "/?tab=pantry" },
     });
-    localStorage.setItem(LAST_KEY, today);
-  } catch {
-    // Some mobile browsers only allow notifications from a service worker; skip quietly
+    return true;
+  } catch (err) {
+    console.error("Notification failed:", err);
+    return false;
   }
+}
+
+// iPhone/iPad Safari only allows web notifications for apps added to the Home Screen
+export function isIOSNotInstalled(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const standalone =
+    window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return ios && !standalone;
 }

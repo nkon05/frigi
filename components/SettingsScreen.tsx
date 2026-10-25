@@ -8,10 +8,12 @@ export default function SettingsScreen({
   restrictions,
   onChange,
   onLoadDemo,
+  extra,
 }: {
   restrictions: RestrictionId[];
   onChange: (r: RestrictionId[]) => void;
   onLoadDemo?: () => void; // omit to hide the Demo section (e.g. on the Recipes diet sub-screen)
+  extra?: React.ReactNode; // more settings sections, shown before Demo
 }) {
   function toggle(id: RestrictionId) {
     onChange(restrictions.includes(id) ? restrictions.filter((r) => r !== id) : [...restrictions, id]);
@@ -43,6 +45,8 @@ export default function SettingsScreen({
         })}
       </ul>
       <p className="mt-3 px-1 text-xs text-stone-400">Saved on this device.</p>
+
+      {extra}
 
       {onLoadDemo && (
         <>

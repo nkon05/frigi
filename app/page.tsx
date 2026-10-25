@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Bell, Camera, ChevronLeft, ChevronRight, Leaf, Snowflake } from "lucide-react";
+import DigestCard from "@/components/DigestCard";
+import DigestSettings from "@/components/DigestSettings";
 import DonateSheet from "@/components/DonateSheet";
 import ImpactScreen from "@/components/ImpactScreen";
 import ItemCard from "@/components/ItemCard";
@@ -13,7 +15,19 @@ import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
 import { fileToResizedBase64 } from "@/lib/image";
 import { demoHistory, demoPantry } from "@/lib/demo";
 import { historyEntry, loadHistory, saveHistory, type HistoryEntry, type Outcome } from "@/lib/history";
-import { notificationPermission, notifyExpiring, requestNotifications } from "@/lib/notify";
+import {
+  computeDigest,
+  digestTimeToday,
+  dismissedToday,
+  dismissToday,
+  loadDigestSettings,
+  markSentToday,
+  saveDigestSettings,
+  sentToday,
+  DEFAULT_DIGEST,
+  type DigestSettings as DigestSettingsT,
+} from "@/lib/digest";
+import { isIOSNotInstalled, notifyStatus, registerServiceWorker, requestNotifications, showNotification, type NotifyStatus } from "@/lib/notify";
 import {
   addDays,
   daysBetween,
@@ -48,7 +62,11 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [restrictions, setRestrictions] = useState<RestrictionId[]>([]);
-  const [notifPerm, setNotifPerm] = useState<string>("unsupported");
+  const [notifStatus, setNotifStatus] = useState<NotifyStatus>("unsupported");
+  const [digestSettings, setDigestSettings] = useState<DigestSettingsT>(DEFAULT_DIGEST);
+  const [digestDismissed, setDigestDismissed] = useState(false);
+  const [testMessage, setTestMessage] = useState<string | null>(null);
+  const [iosNeedsInstall, setIosNeedsInstall] = useState(false);
   const [donating, setDonating] = useState<PantryItem | null>(null);
   const [removing, setRemoving] = useState<PantryItem | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -59,8 +77,24 @@ export default function Home() {
     setItems(loadPantry());
     setHistory(loadHistory());
     setRestrictions(loadRestrictions());
-    setNotifPerm(notificationPermission());
+    setNotifStatus(notifyStatus());
+    setDigestSettings(loadDigestSettings());
+    setDigestDismissed(dismissedToday());
+    setIosNeedsInstall(isIOSNotInstalled());
     setLoaded(true);
+    registerServiceWorker();
+
+    // Opened from a notification: /?tab=pantry, or a message from the service worker if already open
+    const urlTab = new URLSearchParams(window.location.search).get("tab");
+    if (urlTab === "pantry") window.history.replaceState(null, "", "/");
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === "open-tab" && e.data.tab === "pantry") {
+        setTab("pantry");
+        setDietOpen(false);
+      }
+    };
+    navigator.serviceWorker?.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
   }, []);
 
   // Expired or expiring within 2 days, and not used up
@@ -68,16 +102,60 @@ export default function Home() {
     .filter((i) => i.quantityPercent > 0 && daysLeft(i) <= 2)
     .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
   const expiringNames = expiring.map((i) => i.name);
-  const expiringKey = expiringNames.join("|");
 
+  // ---- Daily digest (client-side only: runs when the app is open) ----
+  const digest = computeDigest(items);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const maybeSendDigest = useCallback(async () => {
+    if (!digestSettings.enabled || sentToday() || !itemsRef.current.length) return;
+    if (new Date() < digestTimeToday(digestSettings.time)) return;
+    if (await showNotification("FreshTrack daily digest", computeDigest(itemsRef.current).text)) markSentToday();
+  }, [digestSettings]);
+
+  // On open, whenever the app becomes visible again, and at the chosen time if the app is still open
   useEffect(() => {
-    if (loaded && expiringKey) notifyExpiring(expiringKey.split("|")); // at most once a day
-  }, [loaded, expiringKey]);
+    if (!loaded) return;
+    maybeSendDigest();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      setNotifStatus(notifyStatus()); // permission may have changed in browser settings
+      maybeSendDigest();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const msUntil = digestTimeToday(digestSettings.time).getTime() - Date.now();
+    const timer = msUntil > 0 ? setTimeout(maybeSendDigest, msUntil) : undefined;
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      clearTimeout(timer);
+    };
+  }, [loaded, maybeSendDigest, digestSettings.time]);
 
-  async function enableNotifications() {
-    const perm = await requestNotifications();
-    setNotifPerm(perm);
-    if (perm === "granted") notifyExpiring(expiringNames, { force: true });
+  function updateDigestSettings(next: DigestSettingsT) {
+    setDigestSettings(next);
+    saveDigestSettings(next);
+  }
+
+  async function toggleDigest(enabled: boolean) {
+    if (enabled && notifyStatus() === "default") setNotifStatus(await requestNotifications());
+    updateDigestSettings({ ...digestSettings, enabled });
+  }
+
+  async function sendTestDigest() {
+    let status = notifyStatus();
+    if (status === "default") status = await requestNotifications();
+    setNotifStatus(status);
+    const shown = status === "granted" && (await showNotification("FreshTrack daily digest", digest.text));
+    setTestMessage(
+      shown
+        ? "Sent! Check your notifications."
+        : status === "denied"
+          ? "Notifications are blocked for this site, so the test couldn't be sent."
+          : status === "unsupported"
+            ? "This browser can't show notifications."
+            : "Couldn't show the notification. Try again."
+    );
   }
 
   useEffect(() => {
@@ -266,12 +344,16 @@ export default function Home() {
               <span className="text-sm text-stone-400">{items.length} items</span>
             )}
           </div>
-          {expiring.length > 0 && (
+          {/* On Pantry, the digest card covers this */}
+          {expiring.length > 0 && tab !== "pantry" && (
             <ExpiringBanner
               names={expiringNames}
-              canEnableNotifications={notifPerm === "default"}
+              canEnableNotifications={!digestSettings.enabled && notifStatus !== "unsupported" && notifStatus !== "denied"}
               onOpen={() => goTab("recipes")}
-              onEnableNotifications={enableNotifications}
+              onEnableNotifications={async () => {
+                await toggleDigest(true);
+                setToast({ text: "Daily digest is on. Change the time in Settings.", key: Date.now() });
+              }}
             />
           )}
         </header>
@@ -310,6 +392,16 @@ export default function Home() {
                 </>
               ) : (
                 <>
+                {!digestDismissed && (
+                  <DigestCard
+                    digest={digest}
+                    onSeeRecipes={() => goTab("recipes")}
+                    onDismiss={() => {
+                      dismissToday();
+                      setDigestDismissed(true);
+                    }}
+                  />
+                )}
                 <Segmented
                   value={pantryView}
                   onChange={setPantryView}
@@ -374,7 +466,22 @@ export default function Home() {
           </div>
 
           <div className={tab === "settings" ? "animate-fade-up" : "hidden"}>
-            <SettingsScreen restrictions={restrictions} onChange={updateRestrictions} onLoadDemo={loadDemo} />
+            <SettingsScreen
+              restrictions={restrictions}
+              onChange={updateRestrictions}
+              onLoadDemo={loadDemo}
+              extra={
+                <DigestSettings
+                  settings={digestSettings}
+                  status={notifStatus}
+                  iosNeedsInstall={iosNeedsInstall}
+                  testMessage={testMessage}
+                  onToggle={toggleDigest}
+                  onTime={(time) => updateDigestSettings({ ...digestSettings, time })}
+                  onTest={sendTestDigest}
+                />
+              }
+            />
           </div>
         </main>
 
@@ -460,7 +567,7 @@ function ExpiringBanner({
           onClick={onEnableNotifications}
           className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-amber-200 text-xs font-medium text-amber-900 transition active:bg-amber-100"
         >
-          <Bell size={14} /> Remind me with notifications
+          <Bell size={14} /> Get a daily digest
         </button>
       )}
     </div>
