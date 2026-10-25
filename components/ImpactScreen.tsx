@@ -1,14 +1,11 @@
 "use client";
 
-import { Car, Cloud, Flame, HeartHandshake, PiggyBank, RotateCcw, Snowflake, Sprout, Trash, Utensils, type LucideIcon } from "lucide-react";
-import CategoryIcon from "@/components/CategoryIcon";
+import { Car, Flame, HeartHandshake, RotateCcw, Snowflake, Sprout, Trash, Utensils, type LucideIcon } from "lucide-react";
 import { Plank } from "@/components/Shelf";
 import { EmptyState } from "@/components/ui";
 import { computeStats, type HistoryEntry } from "@/lib/history";
-import type { Category } from "@/lib/pantry";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
-const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 // Outcome colors (chart tokens), validated for colorblind separation in this order:
 // used (olive), donated (amber), tossed (terracotta). Every mark also has a text label.
@@ -34,124 +31,75 @@ export default function ImpactScreen({ history, onReset }: { history: HistoryEnt
     );
   }
 
+  const counts = { used: s.itemsUsed, donated: s.itemsDonated, tossed: s.itemsTossed };
   const outcomeTotal = s.itemsUsed + s.itemsDonated + s.itemsTossed;
-  const rescueRate = outcomeTotal ? s.itemsRescued / outcomeTotal : 0;
   const subline =
     s.itemsRescued === 0
       ? "Use or donate your next item to start saving."
-      : `That's ${s.itemsRescued} item${s.itemsRescued === 1 ? "" : "s"} that didn't end up in the bin. Nice work!`;
-
-  const stats: StatProps[] = [
-    { icon: PiggyBank, label: "money saved", value: money(s.moneySaved), tone: "fine" },
-    { icon: Trash, label: "money wasted", value: money(s.moneyWasted), tone: "urgent" },
-    { icon: Utensils, label: "items rescued", value: String(s.itemsRescued), tone: "fine" },
-    { icon: HeartHandshake, label: "items donated", value: String(s.itemsDonated), tone: "soon" },
-    { icon: Trash, label: "waste rate", value: s.wasteRate == null ? "–" : pct(s.wasteRate), tone: s.wasteRate != null && s.wasteRate > 0.25 ? "urgent" : "plain" },
-    { icon: Flame, label: "no-waste streak", value: `${s.streakDays} day${s.streakDays === 1 ? "" : "s"}`, tone: "soon" },
-  ];
+      : `${s.itemsRescued} item${s.itemsRescued === 1 ? "" : "s"} eaten or donated instead of thrown away.`;
+  const km = Math.round(s.co2Kg / CO2_KG_PER_CAR_KM);
 
   return (
     <div className="space-y-4">
-      {/* Hero: money saved + rescue-rate ring */}
-      <div className="flex items-center gap-4 rounded-2xl bg-olive p-5 text-white shadow-[0_4px_0_var(--color-olive-dark)]">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-white/90">you&apos;ve saved</p>
-          <p className="font-display text-[44px] font-bold leading-none tracking-tight">{money(s.moneySaved)}</p>
-          <p className="mt-1 text-sm font-bold text-white/90">of food</p>
-          <p className="mt-3 text-sm font-medium text-white/90">{subline}</p>
-        </div>
-        {outcomeTotal > 0 && <Ring value={rescueRate} label="rescued" />}
+      {/* Hero: the one number that matters most */}
+      <div className="rounded-2xl bg-olive p-5 text-white shadow-[0_4px_0_var(--color-olive-dark)]">
+        <p className="text-sm font-bold text-white/90">you&apos;ve saved</p>
+        <p className="font-display text-[44px] font-bold leading-none tracking-tight">{money(s.moneySaved)}</p>
+        <p className="mt-3 text-sm font-medium text-white/90">{subline}</p>
       </div>
 
-      {/* Where your food went: one stacked bar + labeled legend */}
+      {/* Where your food went: one stacked bar + labeled counts */}
       {outcomeTotal > 0 && (
         <div className="card p-4">
           <h3 className="font-display text-lg font-bold text-ink">where your food went</h3>
           <div className="mt-3 flex h-4 gap-0.5 overflow-hidden rounded-full">
-            {(["used", "donated", "tossed"] as const).map((k) => {
-              const n = k === "used" ? s.itemsUsed : k === "donated" ? s.itemsDonated : s.itemsTossed;
-              if (!n) return null;
-              return (
+            {(["used", "donated", "tossed"] as const).map((k) =>
+              counts[k] ? (
                 <div
                   key={k}
-                  title={`${OUTCOME[k].label}: ${n} (${pct(n / outcomeTotal)})`}
+                  title={`${OUTCOME[k].label}: ${counts[k]}`}
                   className="h-full transition-all duration-500 first:rounded-l-full last:rounded-r-full"
-                  style={{ width: `${(n / outcomeTotal) * 100}%`, background: OUTCOME[k].color }}
+                  style={{ width: `${(counts[k] / outcomeTotal) * 100}%`, background: OUTCOME[k].color }}
                 />
-              );
-            })}
+              ) : null
+            )}
           </div>
           <ul className="mt-3 grid grid-cols-3 gap-2">
-            {(["used", "donated", "tossed"] as const).map((k) => {
-              const n = k === "used" ? s.itemsUsed : k === "donated" ? s.itemsDonated : s.itemsTossed;
-              const Icon = OUTCOME[k].icon;
-              return (
-                <li key={k} className="text-xs font-bold text-muted">
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: OUTCOME[k].color }} />
-                    <Icon size={12} />
-                    {OUTCOME[k].label}
-                  </span>
-                  <span className="mt-0.5 block font-display text-lg font-bold text-ink">
-                    {n} <span className="font-sans text-xs font-bold text-muted">{pct(n / outcomeTotal)}</span>
-                  </span>
-                </li>
-              );
-            })}
+            {(["used", "donated", "tossed"] as const).map((k) => (
+              <li key={k} className="flex items-center gap-1.5 text-sm font-bold text-muted">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: OUTCOME[k].color }} />
+                <span className="font-display text-lg text-ink">{counts[k]}</span>
+                {OUTCOME[k].label.toLowerCase()}
+              </li>
+            ))}
           </ul>
         </div>
       )}
 
-      {/* Stat tiles on shelves, like the pantry */}
+      {/* Three facts not shown anywhere else, as tiles on a shelf */}
       <div className="-mx-4 pt-1">
-        {[stats.slice(0, 3), stats.slice(3)].map((row, i) => (
-          <div key={i}>
-            <div className="grid grid-cols-3 gap-2 px-4">
-              {row.map((st) => (
-                <Stat key={st.label} {...st} />
-              ))}
-            </div>
-            <Plank />
-          </div>
-        ))}
+        <div className="grid grid-cols-3 gap-2 px-4">
+          <Stat icon={Trash} tone="urgent" value={money(s.moneyWasted)} label="wasted" />
+          <Stat icon={Flame} tone="soon" value={`${s.streakDays} day${s.streakDays === 1 ? "" : "s"}`} label="without waste" />
+          <Stat icon={Snowflake} tone="freeze" value={`+${s.frozenDaysAdded}`} label="days added by freezing" />
+        </div>
+        <Plank />
       </div>
 
-      {/* Freezing */}
-      <div className="flex items-center gap-3 rounded-2xl border-2 border-freeze/40 bg-[#e3ecf0] p-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-paper text-freeze">
-          <Snowflake size={22} />
-        </div>
-        <div>
-          <p className="section-label text-freeze">Extended by freezing</p>
-          <p className="font-display text-lg font-bold text-[#2f4d5c]">
-            {s.frozenItems} item{s.frozenItems === 1 ? "" : "s"} · +{s.frozenDaysAdded} days
-          </p>
-          {s.frozenItems === 0 && <p className="text-xs font-bold text-[#2f4d5c]/80">Freeze food that&apos;s about to expire to keep it for months.</p>}
-        </div>
-      </div>
-
-      {/* CO2 with a relatable equivalent */}
-      <div className="card p-4">
-        <div className="flex items-center gap-3">
+      {/* CO2, in everyday terms */}
+      {km > 0 && (
+        <div className="card flex items-center gap-3 p-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-tip text-olive">
-            <Cloud size={22} />
+            <Car size={22} />
           </div>
-          <div>
-            <p className="font-display text-lg font-bold text-ink">
-              ~{s.co2Kg.toFixed(1)} kg CO₂e <span className="font-sans text-xs font-bold text-muted">est.</span>
-            </p>
-            <p className="flex items-center gap-1 text-sm font-bold text-muted">
-              <Car size={14} />
-              about {Math.round(s.co2Kg / CO2_KG_PER_CAR_KM)} km not driven
-            </p>
-          </div>
+          <p className="text-sm font-bold text-ink">
+            Like not driving <span className="font-display text-lg">{km} km</span>
+            <span className="block text-xs font-medium text-muted">Rough estimate of CO₂ saved by not wasting food</span>
+          </p>
         </div>
-        <p className="mt-2 text-[11px] text-muted">Rough estimate of emissions avoided, based on food type.</p>
-      </div>
+      )}
 
       <WeekCompare thisWeek={s.thisWeek} lastWeek={s.lastWeek} />
-
-      {s.rescuedByCategory.length > 0 && <CategoryBars rows={s.rescuedByCategory} />}
 
       <div className="flex justify-center pt-2">
         <button onClick={onReset} className="btn btn-outline text-sm">
@@ -163,45 +111,14 @@ export default function ImpactScreen({ history, onReset }: { history: HistoryEnt
   );
 }
 
-// Single-value gauge (white on the olive hero)
-function Ring({ value, label }: { value: number; label: string }) {
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative h-24 w-24 shrink-0" title={`${pct(value)} of finished items were used or donated`}>
-      <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90">
-        <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="8" />
-        <circle
-          cx="40"
-          cy="40"
-          r={r}
-          fill="none"
-          stroke="white"
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={`${c * value} ${c}`}
-          className="transition-all duration-700"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-xl font-bold leading-none">{pct(value)}</span>
-        <span className="text-[10px] font-bold text-white/90">{label}</span>
-      </div>
-    </div>
-  );
-}
-
 const TONES = {
-  fine: "bg-fine-bg text-fine",
   urgent: "bg-urgent-bg text-urgent",
   soon: "bg-soon-bg text-soon",
-  plain: "bg-tip text-brown",
+  freeze: "bg-[#dbe6ec] text-freeze",
 };
 
-type StatProps = { icon: LucideIcon; label: string; value: string; tone: keyof typeof TONES };
-
 // Stat tile, shaped like a pantry shelf tile
-function Stat({ icon: Icon, label, value, tone }: StatProps) {
+function Stat({ icon: Icon, label, value, tone }: { icon: LucideIcon; label: string; value: string; tone: keyof typeof TONES }) {
   return (
     <div className="flex min-w-0 flex-col rounded-[12px_12px_4px_4px] bg-paper p-2.5 shadow-[0_2px_0_rgba(0,0,0,.08)]">
       <div className={`mb-1.5 flex h-8 w-8 items-center justify-center rounded-full ${TONES[tone]}`}>
@@ -241,7 +158,7 @@ function WeekCompare({ thisWeek, lastWeek }: { thisWeek: Week; lastWeek: Week })
               ))}
             </div>
             {/* Per-column labels: identity never relies on color alone */}
-            <div className="mt-1 flex gap-2 text-[10px] font-bold text-muted">
+            <div className="mt-1 flex gap-2 text-[11px] font-bold text-muted">
               {(["used", "tossed"] as const).map((k) => (
                 <span key={k} className="w-10 text-center">
                   {OUTCOME[k].label}
@@ -252,38 +169,6 @@ function WeekCompare({ thisWeek, lastWeek }: { thisWeek: Week; lastWeek: Week })
           </div>
         ))}
       </div>
-      <div className="mt-3 flex items-center justify-center gap-4 text-xs font-bold text-muted">
-        {(["used", "tossed"] as const).map((k) => (
-          <span key={k} className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: OUTCOME[k].color }} />
-            {OUTCOME[k].label}
-          </span>
-        ))}
-      </div>
-      <p className="mt-2 text-center text-[11px] text-muted">Weeks are the last 7 days and the 7 days before.</p>
-    </div>
-  );
-}
-
-function CategoryBars({ rows }: { rows: { category: Category; count: number }[] }) {
-  const max = Math.max(...rows.map((r) => r.count));
-  return (
-    <div className="card p-4">
-      <h3 className="font-display text-lg font-bold text-ink">what you rescued</h3>
-      <ul className="mt-3 space-y-2">
-        {rows.map((r) => (
-          <li key={r.category} className="flex items-center gap-2 text-sm" title={`${r.count} ${r.category} item${r.count === 1 ? "" : "s"} used or donated`}>
-            <span className="flex w-6 justify-center">
-              <CategoryIcon category={r.category} size={18} />
-            </span>
-            <span className="w-16 font-bold capitalize text-brown">{r.category}</span>
-            <div className="h-3 flex-1 overflow-hidden rounded-full bg-track">
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(r.count / max) * 100}%`, background: "var(--color-chart-used)" }} />
-            </div>
-            <span className="w-6 text-right font-extrabold tabular-nums text-ink">{r.count}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

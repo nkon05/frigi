@@ -110,6 +110,10 @@
     font-weight: 800;
     line-height: 1.25;
   }
+  .pill-expired {
+    background-color: var(--color-brown);
+    color: var(--color-paper);
+  }
   .pill-urgent {
     background-color: var(--color-urgent-bg);
     color: var(--color-urgent);

@@ -97,8 +97,6 @@ export type ImpactStats = {
   itemsUsed: number;
   itemsDonated: number;
   itemsTossed: number;
-  rescuedByCategory: { category: Category; count: number }[]; // most first
-  wasteRate: number | null; // tossed / (used + tossed + donated), null with no data
   streakDays: number; // days since last tossed item (or since the first entry if never)
   co2Kg: number;
   thisWeek: { used: number; tossed: number };
@@ -142,7 +140,6 @@ export function computeStats(history: HistoryEntry[]): ImpactStats {
     return { used: used.filter(inRange).length, tossed: tossed.filter(inRange).length };
   };
 
-  const total = used.length + tossed.length + donated.length;
   return {
     moneySaved,
     moneyWasted,
@@ -150,13 +147,6 @@ export function computeStats(history: HistoryEntry[]): ImpactStats {
     itemsUsed: used.length,
     itemsDonated: donated.length,
     itemsTossed: tossed.length,
-    rescuedByCategory: CATEGORIES.map((category) => ({
-      category,
-      count: [...used, ...donated].filter((e) => e.category === category).length,
-    }))
-      .filter((c) => c.count > 0)
-      .sort((a, b) => b.count - a.count),
-    wasteRate: total ? tossed.length / total : null,
     streakDays: streakFrom ? Math.max(0, daysBetween(streakFrom, today)) : 0,
     co2Kg,
     thisWeek: week(0, 6), // rolling: today and the 6 days before

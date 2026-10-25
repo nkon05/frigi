@@ -2,8 +2,8 @@ import type { LucideIcon } from "lucide-react";
 import type { Urgency } from "@/lib/pantry";
 
 // Urgency styles shared by shelf tiles, the item sheet and recipe chips
-export const URGENCY_PILL: Record<Urgency, string> = { red: "pill-urgent", yellow: "pill-soon", green: "pill-fine" };
-export const URGENCY_DOT: Record<Urgency, string> = { red: "bg-dot-urgent", yellow: "bg-dot-soon", green: "bg-dot-fine" };
+export const URGENCY_PILL: Record<Urgency, string> = { expired: "pill-expired", red: "pill-urgent", yellow: "pill-soon", green: "pill-fine" };
+export const URGENCY_DOT: Record<Urgency, string> = { expired: "bg-brown", red: "bg-dot-urgent", yellow: "bg-dot-soon", green: "bg-dot-fine" };
 
 export function Banner({
   tone,

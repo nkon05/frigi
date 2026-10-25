@@ -8,7 +8,7 @@ const SOURCE_SHORT = { usda: "USDA", ai: "AI est.", manual: "Edited" };
 const SOURCE_COLOR = { usda: "text-olive-text", ai: "text-ai", manual: "text-muted" };
 
 // Lid color repeats the urgency (the pill text states it too, so color is never the only cue)
-const LID: Record<Urgency, string> = { red: "bg-dot-urgent", yellow: "bg-[#C9923A]", green: "bg-fill" };
+const LID: Record<Urgency, string> = { expired: "bg-brown", red: "bg-dot-urgent", yellow: "bg-[#C9923A]", green: "bg-fill" };
 
 // Empty jar outline (lid, neck, body). Widths are percentages so jars shrink with the screen.
 export function JarFrame({ lid, children }: { lid: string; children: React.ReactNode }) {

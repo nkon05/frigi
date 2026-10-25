@@ -351,7 +351,7 @@ export default function Home() {
             </p>
           )}
           <div className="mt-1 flex items-baseline justify-between">
-            <h1 className="font-display text-[34px] font-normal leading-tight text-heading">
+            <h1 className="font-display text-[34px] font-semibold leading-tight text-heading">
               {showDiet ? "allergies & diet" : TITLES[tab]}
             </h1>
             {tab === "pantry" && items.length > 0 && (

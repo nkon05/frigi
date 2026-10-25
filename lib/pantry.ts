@@ -142,11 +142,12 @@ export function humanDays(n: number): string {
 
 // ---- Shared display helpers (urgency thresholds, expiry labels, ordering) ----
 
-export type Urgency = "red" | "yellow" | "green";
+export type Urgency = "expired" | "red" | "yellow" | "green";
 
-// red = expired or within 2 days, yellow = within 5 days, green = later
+// expired = past its date, red = within 2 days, yellow = within 5 days, green = later
 export function urgency(item: PantryItem): Urgency {
   const d = daysLeft(item);
+  if (d < 0) return "expired";
   if (d <= 2) return "red";
   if (d <= 5) return "yellow";
   return "green";

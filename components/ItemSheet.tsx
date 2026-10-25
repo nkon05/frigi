@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BadgeCheck, Minus, Pencil, Plus, Sparkles, ThermometerSun } from "lucide-react";
+import { BadgeCheck, HeartHandshake, Minus, Pencil, Plus, ShoppingCart, Snowflake, Sparkles, ThermometerSun, Trash2 } from "lucide-react";
 import { SheetFrame } from "@/components/Sheet";
 import { QtyBar, URGENCY_PILL } from "@/components/ui";
 import {
@@ -123,22 +123,27 @@ export default function ItemSheet({
 
       {frozen ? (
         <button onClick={onThaw} className="btn btn-freeze mt-4 h-[54px] w-full text-base">
+          <ThermometerSun size={20} aria-hidden />
           Thaw · move to fridge
         </button>
       ) : canFreeze(item) ? (
         <button onClick={onFreeze} className="btn btn-freeze mt-4 h-[54px] w-full text-base">
+          <Snowflake size={20} aria-hidden />
           Freeze it · keeps ~{humanDays(freezeDays(item) ?? 0)}
         </button>
       ) : null}
 
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <button onClick={onDonate} className="btn btn-outline h-12 bg-soon-bg px-1">
+        <button onClick={onDonate} className="btn btn-outline h-12 gap-1.5 bg-soon-bg px-1">
+          <HeartHandshake size={17} aria-hidden className="shrink-0" />
           Donate
         </button>
-        <a href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.name)}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline h-12 px-1">
+        <a href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.name)}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline h-12 gap-1.5 px-1">
+          <ShoppingCart size={17} aria-hidden className="shrink-0" />
           Reorder
         </a>
-        <button onClick={onRemove} className="btn btn-outline h-12 bg-urgent-bg px-1">
+        <button onClick={onRemove} className="btn btn-outline h-12 gap-1.5 bg-urgent-bg px-1">
+          <Trash2 size={17} aria-hidden className="shrink-0" />
           Remove
         </button>
       </div>
