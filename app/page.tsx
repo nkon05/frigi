@@ -48,7 +48,7 @@ import { applyRecipeMade, type Recipe } from "@/lib/recipes";
 import { loadRestrictions, saveRestrictions, type RestrictionId } from "@/lib/restrictions";
 
 const TITLES: Record<Tab, string> = {
-  pantry: "your kitchen",
+  pantry: "your pantry",
   recipes: "recipes",
   impact: "your impact",
   settings: "settings",
@@ -344,10 +344,14 @@ export default function Home() {
               Back
             </button>
           ) : (
-            <p className="text-[13px] font-extrabold text-olive">frigi.</p>
+            <p className="flex items-center gap-1.5">
+              <span className="text-[15px] font-black text-olive-text">frigi</span>
+              <Smiley />
+              <span className="text-[13px] font-normal text-ink">waste less. save more. eat well.</span>
+            </p>
           )}
           <div className="mt-1 flex items-baseline justify-between">
-            <h1 className="font-display text-[30px] font-normal leading-tight text-heading">
+            <h1 className="font-display text-[34px] font-normal leading-tight text-heading">
               {showDiet ? "allergies & diet" : TITLES[tab]}
             </h1>
             {tab === "pantry" && items.length > 0 && (
@@ -602,5 +606,17 @@ function Segmented<T extends string>({
         );
       })}
     </div>
+  );
+}
+
+// Small inline smiley (same on every platform, unlike an emoji)
+function Smiley() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden className="shrink-0 text-olive-text">
+      <circle cx="8" cy="8" r="7" fill="currentColor" />
+      <circle cx="5.6" cy="6.4" r="1.1" fill="#FFFDF7" />
+      <circle cx="10.4" cy="6.4" r="1.1" fill="#FFFDF7" />
+      <path d="M4.8 9.4c.8 1.4 1.9 2.1 3.2 2.1s2.4-.7 3.2-2.1" fill="none" stroke="#FFFDF7" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
   );
 }
