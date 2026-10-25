@@ -1,5 +1,5 @@
 import { Snowflake } from "lucide-react";
-import type { PantryItem } from "@/lib/pantry";
+import type { Category } from "@/lib/pantry";
 
 // Simple colored shapes per category (no emoji). Berries are picked out by name.
 const SHAPES = {
@@ -28,8 +28,8 @@ const STYLE: Record<string, { shape: keyof typeof SHAPES | "snow"; color: string
 };
 const BERRIES = { shape: "circle" as const, color: "#5B4B7A" };
 
-export default function CategoryIcon({ item, size = 22 }: { item: PantryItem; size?: number }) {
-  const { shape, color } = /berr/i.test(item.name) ? BERRIES : STYLE[item.category] ?? STYLE.other;
+export default function CategoryIcon({ category, name = "", size = 22 }: { category: Category; name?: string; size?: number }) {
+  const { shape, color } = /berr/i.test(name) ? BERRIES : STYLE[category] ?? STYLE.other;
   if (shape === "snow") return <Snowflake size={size} color={color} strokeWidth={2.5} aria-hidden />;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden>

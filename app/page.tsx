@@ -9,10 +9,11 @@ import ImpactScreen from "@/components/ImpactScreen";
 import ItemSheet from "@/components/ItemSheet";
 import RecipesScreen from "@/components/RecipesScreen";
 import RemoveSheet from "@/components/RemoveSheet";
+import { ConfirmSheet } from "@/components/Sheet";
 import Shelves, { Plank } from "@/components/Shelf";
 import SettingsScreen from "@/components/SettingsScreen";
 import TabBar, { type Tab } from "@/components/TabBar";
-import { Banner, LoadingCard } from "@/components/ui";
+import { Banner, LoadingCard, Toast } from "@/components/ui";
 import { fileToResizedBase64 } from "@/lib/image";
 import { demoHistory, demoPantry } from "@/lib/demo";
 import { historyEntry, loadHistory, saveHistory, type HistoryEntry, type Outcome } from "@/lib/history";
@@ -48,9 +49,9 @@ import { loadRestrictions, saveRestrictions, type RestrictionId } from "@/lib/re
 
 const TITLES: Record<Tab, string> = {
   pantry: "your kitchen",
-  recipes: "Recipes",
-  impact: "Your impact",
-  settings: "Settings",
+  recipes: "recipes",
+  impact: "your impact",
+  settings: "settings",
 };
 
 const THAWED_DAYS = 3;
@@ -77,6 +78,7 @@ export default function Home() {
   // A new key resets the recipe picker to these ids (null = items expiring soon)
   const [recipesFocus, setRecipesFocus] = useState<{ key: number; ids: string[] | null }>({ key: 0, ids: null });
   const [openItemId, setOpenItemId] = useState<string | null>(null); // item sheet
+  const [confirming, setConfirming] = useState<"demo" | "reset" | null>(null);
 
   useEffect(() => {
     setItems(loadPantry());
@@ -192,7 +194,7 @@ export default function Home() {
     const text = {
       used: `Nice, you used up the ${item.name}!`,
       tossed: `Logged ${item.name} as tossed`,
-      donated: `Thanks for donating ${item.name} 💚`,
+      donated: `Thanks for donating ${item.name}!`,
     }[outcome];
     setToast({ text, key: Date.now() });
   }
@@ -228,7 +230,7 @@ export default function Home() {
       )
     );
     addHistory([historyEntry(item, "frozen", { daysAdded })]);
-    setToast({ text: `Frozen! Added ~${humanDays(daysAdded)} to the ${item.name} ❄️`, key: Date.now() });
+    setToast({ text: `Frozen! Added ~${humanDays(daysAdded)} to the ${item.name}`, key: Date.now() });
   }
 
   // Thawed food spoils faster: back to the fridge with a short, fixed expiry
@@ -249,9 +251,14 @@ export default function Home() {
     saveHistory([]);
   }
 
+  // Never overwrite real data without asking
   function loadDemo() {
-    // Never overwrite real data without asking
-    if ((items.length || history.length) && !confirm("Replace your pantry and impact history with demo data? This can't be undone.")) return;
+    if (items.length || history.length) setConfirming("demo");
+    else replaceWithDemo();
+  }
+
+  function replaceWithDemo() {
+    setConfirming(null);
     update(demoPantry());
     const demo = demoHistory();
     setHistory(demo);
@@ -259,7 +266,7 @@ export default function Home() {
     setPantryView("main");
     goTab("pantry");
     setError(null);
-    setNotice("Demo data loaded 🎉 Check the Freezer and Impact tabs too.");
+    setNotice("Demo data loaded. Check the Freezer and Impact tabs too.");
   }
 
   // Switching tabs always lands on the tab's main screen
@@ -312,7 +319,7 @@ export default function Home() {
       update([...items, ...parsed.map((p) => toPantryItem(p))]);
       const toFreezer = parsed.filter((p) => p.location === "freezer").length;
       setNotice(
-        `Added ${parsed.length} item${parsed.length === 1 ? "" : "s"} 🎉` +
+        `Added ${parsed.length} item${parsed.length === 1 ? "" : "s"} to your shelves` +
           (toFreezer ? ` (${toFreezer} in the freezer)` : "")
       );
     } catch (e) {
@@ -337,7 +344,7 @@ export default function Home() {
           {showDiet ? (
             <button
               onClick={() => setDietOpen(false)}
-              className="-ml-2 -my-2.5 flex min-h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-sm font-semibold text-green-700 transition active:scale-95 active:bg-green-50"
+              className="-ml-2 -my-2.5 flex min-h-11 items-center gap-0.5 rounded-full pl-1 pr-3 text-[13px] font-extrabold text-olive transition active:scale-95 active:bg-tip"
             >
               <ChevronLeft size={20} strokeWidth={2.5} />
               Back
@@ -347,7 +354,7 @@ export default function Home() {
           )}
           <div className="mt-1 flex items-baseline justify-between">
             <h1 className="font-display text-[30px] font-normal leading-tight text-heading">
-              {showDiet ? "Allergies & diet" : TITLES[tab]}
+              {showDiet ? "allergies & diet" : TITLES[tab]}
             </h1>
             {tab === "pantry" && items.length > 0 && (
               <span className="text-[11px] font-bold text-muted">
@@ -451,7 +458,7 @@ export default function Home() {
           )}
 
           <div className={tab === "impact" ? "animate-fade-up px-4" : "hidden"}>
-            <ImpactScreen history={history} onReset={resetStats} />
+            <ImpactScreen history={history} onReset={() => setConfirming("reset")} />
           </div>
 
           <div className={tab === "settings" ? "animate-fade-up px-4" : "hidden"}>
@@ -476,16 +483,28 @@ export default function Home() {
 
         <TabBar tab={tab} onTab={goTab} scanning={loading} onScan={handleFile} />
 
-        {toast && (
-          <div
-            key={toast.key}
-            role="status"
-            className="animate-fade-up pointer-events-none absolute inset-x-0 bottom-28 z-20 flex justify-center px-6"
-          >
-            <p className="rounded-full bg-stone-900/90 px-4 py-2.5 text-center text-sm font-medium text-white shadow-lg">
-              {toast.text}
-            </p>
-          </div>
+        {toast && <Toast key={toast.key} text={toast.text} />}
+
+        {confirming === "demo" && (
+          <ConfirmSheet
+            title="load demo data?"
+            body="This replaces your pantry and impact history with sample data. It can't be undone."
+            confirmLabel="replace"
+            onConfirm={replaceWithDemo}
+            onClose={() => setConfirming(null)}
+          />
+        )}
+        {confirming === "reset" && (
+          <ConfirmSheet
+            title="reset your stats?"
+            body="This clears your impact history: money saved, waste and freezing. Your pantry stays as it is. It can't be undone."
+            confirmLabel="reset"
+            onConfirm={() => {
+              setConfirming(null);
+              resetStats();
+            }}
+            onClose={() => setConfirming(null)}
+          />
         )}
 
         {openItem && (
@@ -540,7 +559,7 @@ function ScanningState() {
   return (
     <div className="mb-4">
       <div className="mb-4 px-4">
-        <LoadingCard title="Reading your receipt..." subtitle="Finding food items and expiry dates" />
+        <LoadingCard title="reading your receipt..." subtitle="Finding food items and expiry dates" />
       </div>
       <div className="grid grid-cols-3 gap-2 px-4">
         {[0, 1, 2].map((i) => (
@@ -572,6 +591,7 @@ function EmptyShelf({ text, onLoadDemo }: { text: string; onLoadDemo?: () => voi
   );
 }
 
+// Shown at the top of non-Pantry tabs (Pantry has the digest card instead)
 function ExpiringBanner({
   names,
   canEnableNotifications,
@@ -584,25 +604,25 @@ function ExpiringBanner({
   onEnableNotifications: () => void;
 }) {
   return (
-    <div className="animate-fade-up mt-3 overflow-hidden rounded-2xl bg-amber-50 ring-1 ring-amber-200">
-      <button onClick={onOpen} className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition active:bg-amber-100">
-        <AlertTriangle size={18} className="shrink-0 text-amber-600" />
+    <div className="animate-fade-up mt-3 overflow-hidden rounded-2xl border-2 border-terra bg-paper">
+      <button onClick={onOpen} className="flex min-h-12 w-full items-center gap-3 px-3 py-2.5 text-left transition active:bg-tip">
+        <AlertTriangle size={18} className="shrink-0 text-terra" />
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-amber-900">
+          <span className="block text-[13px] font-extrabold text-ink">
             {names.length} item{names.length === 1 ? "" : "s"} expiring soon
           </span>
-          <span className="block truncate text-xs text-amber-800/80">{names.join(", ")}</span>
+          <span className="block truncate text-xs font-bold text-muted">{names.join(", ")}</span>
         </span>
-        <span className="flex shrink-0 items-center text-xs font-medium text-amber-800">
-          Recipes <ChevronRight size={14} />
+        <span className="pill shrink-0 bg-urgent-bg px-2.5 py-1.5 text-[13px] text-terra">
+          see recipes <ChevronRight size={14} />
         </span>
       </button>
       {canEnableNotifications && (
         <button
           onClick={onEnableNotifications}
-          className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-amber-200 text-xs font-medium text-amber-900 transition active:bg-amber-100"
+          className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t-2 border-wall text-xs font-extrabold text-brown transition active:bg-tip"
         >
-          <Bell size={14} /> Get a daily digest
+          <Bell size={14} /> get a daily digest
         </button>
       )}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, Sparkles } from "lucide-react";
-import { CARD } from "@/components/ui";
+import { Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui";
 import { RESTRICTIONS, type RestrictionId } from "@/lib/restrictions";
 
 export default function SettingsScreen({
@@ -21,44 +21,37 @@ export default function SettingsScreen({
 
   return (
     <div>
-      <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-stone-400">Allergies & diet</h2>
-      <p className="mb-3 mt-1 px-1 text-sm text-stone-500">Recipe ideas will strictly avoid anything you check here.</p>
+      <h2 className="section-label px-1">Allergies & diet</h2>
+      <p className="mb-3 mt-1 px-1 text-sm text-muted">Recipe ideas will strictly avoid anything you turn on here.</p>
 
-      <ul className={`${CARD} divide-y divide-stone-100 overflow-hidden`}>
+      <ul className="card divide-y-2 divide-wall overflow-hidden">
         {RESTRICTIONS.map((r) => {
           const on = restrictions.includes(r.id);
           return (
             <li key={r.id}>
-              <label className="flex min-h-14 cursor-pointer items-center gap-3 px-4 transition active:bg-stone-50">
-                <input type="checkbox" className="sr-only" checked={on} onChange={() => toggle(r.id)} />
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition ${
-                    on ? "border-green-600 bg-green-600 text-white" : "border-stone-300 bg-white"
-                  }`}
-                >
-                  {on && <Check size={16} strokeWidth={3} />}
-                </span>
-                <span className="font-medium text-stone-800">{r.label}</span>
+              <label className="flex min-h-14 cursor-pointer items-center justify-between gap-3 px-4 transition active:bg-tip">
+                <span className="font-bold text-ink">{r.label}</span>
+                <input type="checkbox" role="switch" className="sr-only" checked={on} onChange={() => toggle(r.id)} />
+                <Switch on={on} />
               </label>
             </li>
           );
         })}
       </ul>
-      <p className="mt-3 px-1 text-xs text-stone-400">Saved on this device.</p>
+      <p className="mt-2 px-1 text-xs text-muted">Saved on this device.</p>
 
       {extra}
 
       {onLoadDemo && (
         <>
-          <h2 className="mt-8 px-1 text-sm font-semibold uppercase tracking-wide text-stone-400">Demo</h2>
-          <button
-            onClick={onLoadDemo}
-            className={`${CARD} mt-3 flex min-h-14 w-full items-center gap-3 px-4 text-left transition active:scale-[0.98]`}
-          >
-            <Sparkles size={20} className="shrink-0 text-green-600" />
+          <h2 className="section-label mt-8 px-1">Demo</h2>
+          <button onClick={onLoadDemo} className="card mt-3 flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition active:scale-[0.98]">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tip text-olive">
+              <Sparkles size={20} />
+            </span>
             <span>
-              <span className="block font-medium text-stone-800">Load demo data</span>
-              <span className="block text-xs text-stone-500">Replaces your pantry and impact history with sample data</span>
+              <span className="block font-bold text-ink">load demo data</span>
+              <span className="block text-xs text-muted">Replaces your pantry and impact history with sample data</span>
             </span>
           </button>
         </>

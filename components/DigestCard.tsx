@@ -23,7 +23,7 @@ export default function DigestCard({
       {attention && (
         <button
           onClick={onSeeRecipes}
-          className="h-11 shrink-0 rounded-xl bg-[#F3D2C4] px-3 text-[15px] font-extrabold text-terra transition active:scale-95"
+          className="btn h-11 shrink-0 rounded-xl bg-urgent-bg px-3 text-[15px] text-terra"
         >
           see recipes
         </button>

@@ -1,22 +1,16 @@
 "use client";
 
 import CategoryIcon from "@/components/CategoryIcon";
-import { daysLeft, expiryLabel, shortExpiryLabel, urgency, type PantryItem, type Urgency } from "@/lib/pantry";
-
-// Expiry pill colors (shared with the item sheet)
-export const PILL: Record<Urgency, string> = {
-  red: "bg-[#F3D2C4] text-terra",
-  yellow: "bg-[#F6E2B0] text-[#5E4300]",
-  green: "bg-[#DCE5C3] text-[#3A4A1A]",
-};
+import { URGENCY_PILL } from "@/components/ui";
+import { daysLeft, expiryLabel, shortExpiryLabel, urgency, type PantryItem } from "@/lib/pantry";
 
 const SOURCE_SHORT = { usda: "USDA", ai: "AI est.", manual: "Edited" };
-const SOURCE_COLOR = { usda: "text-olive-text", ai: "text-[#8A5A1E]", manual: "text-muted" };
+const SOURCE_COLOR = { usda: "text-olive-text", ai: "text-ai", manual: "text-muted" };
 
 export function QtyBar({ percent, height }: { percent: number; height: number }) {
   return (
-    <div className="w-full overflow-hidden rounded-full bg-[#E6D9BC]" style={{ height }}>
-      <div className="h-full rounded-full bg-[#7E8F4A] transition-all duration-300" style={{ width: `${percent}%` }} />
+    <div className="w-full overflow-hidden rounded-full bg-track" style={{ height }}>
+      <div className="h-full rounded-full bg-fill transition-all duration-300" style={{ width: `${percent}%` }} />
     </div>
   );
 }
@@ -29,12 +23,12 @@ export default function ShelfTile({ item, onOpen }: { item: PantryItem; onOpen: 
       aria-label={`${item.name}, ${expiryLabel(d).toLowerCase()}, ${item.quantityPercent}% left`}
       className="flex min-w-0 flex-col items-start rounded-[12px_12px_4px_4px] bg-paper p-2 text-left shadow-[0_2px_0_rgba(0,0,0,.08)] transition active:scale-95"
     >
-      <CategoryIcon item={item} />
+      <CategoryIcon category={item.category} name={item.name} />
       <span className="mt-1 line-clamp-2 h-[30px] w-full font-display text-[13px] font-bold leading-[15px] text-ink">{item.name}</span>
       <span className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5">
-        <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-extrabold leading-tight ${PILL[urgency(item)]}`}>{shortExpiryLabel(d)}</span>
+        <span className={`pill px-1.5 ${URGENCY_PILL[urgency(item)]}`}>{shortExpiryLabel(d)}</span>
         {item.thawed ? (
-          <span className="text-[9px] font-bold text-[#8A5A1E]">Thawed</span>
+          <span className="text-[9px] font-bold text-ai">Thawed</span>
         ) : (
           <span className={`text-[9px] font-bold ${SOURCE_COLOR[item.shelfLifeSource] ?? SOURCE_COLOR.ai}`}>
             {SOURCE_SHORT[item.shelfLifeSource] ?? SOURCE_SHORT.ai}

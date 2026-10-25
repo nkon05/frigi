@@ -3,7 +3,6 @@
 @theme inline {
   --font-sans: var(--font-nunito);
   --font-display: var(--font-fraunces);
-  --color-cream: #faf7f0;
 
   /* Kitchen palette */
   --color-wall: #f1e8d8;
@@ -20,6 +19,134 @@
   --color-wood: #b07a4f;
   --color-wood-dark: #8a5a36;
   --color-freeze: #4f7387;
+  --color-brown: #5b3a22; /* outline button text */
+  --color-tip: #f1e7d0; /* storage tip / soft panels */
+  --color-track: #e6d9bc; /* bar track */
+  --color-fill: #7e8f4a; /* quantity bar fill */
+  --color-ai: #8a5a1e; /* "AI est." label */
+
+  /* Urgency pills (bg / text) and dots */
+  --color-urgent-bg: #f3d2c4;
+  --color-urgent: #8a2f12;
+  --color-soon-bg: #f6e2b0;
+  --color-soon: #5e4300;
+  --color-fine-bg: #dce5c3;
+  --color-fine: #3a4a1a;
+  --color-dot-urgent: #b5573a;
+  --color-dot-soon: #d9a23a;
+  --color-dot-fine: #7e8f4a;
+
+  /* Charts (colorblind-validated: olive / amber / terracotta, always with text labels) */
+  --color-chart-used: #6b8a2e;
+  --color-chart-donated: #d9a23a;
+  --color-chart-tossed: #8a2f12;
+}
+
+/* ---- Shared kitchen components ---------------------------------------- */
+@layer components {
+  .card {
+    background-color: var(--color-paper);
+    border-radius: 16px;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.08);
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  /* Buttons: 44px minimum, radius 14 */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0 1rem;
+    border-radius: 14px;
+    font-weight: 800;
+    transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s;
+  }
+  .btn:active {
+    transform: scale(0.97);
+  }
+  .btn:disabled {
+    opacity: 0.55;
+  }
+  .btn-primary {
+    background-color: var(--color-olive);
+    color: #fff;
+    box-shadow: 0 4px 0 var(--color-olive-dark);
+  }
+  .btn-primary:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--color-olive-dark);
+  }
+  .btn-secondary {
+    background-color: var(--color-tip);
+    color: var(--color-brown);
+  }
+  .btn-outline {
+    border: 2px solid var(--color-wood);
+    background-color: var(--color-paper);
+    color: var(--color-brown);
+    border-radius: 12px;
+  }
+  .btn-freeze {
+    background-color: var(--color-freeze);
+    color: #fff;
+  }
+
+  /* Pills */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+  .pill-urgent {
+    background-color: var(--color-urgent-bg);
+    color: var(--color-urgent);
+  }
+  .pill-soon {
+    background-color: var(--color-soon-bg);
+    color: var(--color-soon);
+  }
+  .pill-fine {
+    background-color: var(--color-fine-bg);
+    color: var(--color-fine);
+  }
+  .pill-freeze {
+    background-color: #dbe6ec;
+    color: #2f4d5c;
+  }
+
+  /* Text inputs */
+  .field {
+    min-height: 44px;
+    border-radius: 12px;
+    border: 2px solid var(--color-sand);
+    background-color: var(--color-paper);
+    padding: 0 0.75rem;
+    color: var(--color-ink);
+  }
+  .field:focus {
+    border-color: var(--color-olive);
+    outline: none;
+  }
+}
+
+/* Visible keyboard focus everywhere (also for visually hidden checkboxes inside labels) */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible,
+label:has(input:focus-visible) {
+  outline: 3px solid var(--color-olive);
+  outline-offset: 2px;
 }
 
 /* Faint wallpaper stripes behind the app */

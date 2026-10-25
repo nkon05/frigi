@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { BadgeCheck, Minus, Pencil, Plus, Sparkles, ThermometerSun } from "lucide-react";
 import { SheetFrame } from "@/components/Sheet";
-import { PILL, QtyBar } from "@/components/ShelfTile";
+import { QtyBar } from "@/components/ShelfTile";
+import { URGENCY_PILL } from "@/components/ui";
 import {
   canFreeze,
   daysBetween,
@@ -18,11 +19,10 @@ import {
 
 const SOURCE = {
   usda: { label: "USDA FoodKeeper", icon: BadgeCheck, cls: "text-olive-text" },
-  ai: { label: "AI estimate", icon: Sparkles, cls: "text-[#8A5A1E]" },
+  ai: { label: "AI estimate", icon: Sparkles, cls: "text-ai" },
   manual: { label: "Edited", icon: Pencil, cls: "text-muted" },
 };
 
-const OUTLINE = "flex h-12 items-center justify-center rounded-xl border-2 border-wood font-extrabold text-[#5B3A22] transition active:scale-95";
 
 export default function ItemSheet({
   item,
@@ -59,7 +59,7 @@ export default function ItemSheet({
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className={`rounded-full px-3 py-1 text-sm font-extrabold ${PILL[urgency(item)]}`}>{expiryLabel(d)}</span>
+        <span className={`pill px-3 py-1 text-sm ${URGENCY_PILL[urgency(item)]}`}>{expiryLabel(d)}</span>
         {editing ? (
           <input
             type="date"
@@ -71,7 +71,7 @@ export default function ItemSheet({
               if (!v) return;
               onChange({ ...item, expiryDate: v, shelfLifeDays: daysBetween(item.purchaseDate, v), shelfLifeSource: "manual", thawed: false });
             }}
-            className="min-h-11 rounded-xl border-2 border-sand bg-paper px-3 text-ink"
+            className="field"
           />
         ) : (
           <button
@@ -84,7 +84,7 @@ export default function ItemSheet({
           </button>
         )}
         {item.thawed ? (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-[#8A5A1E]">
+          <span className="flex items-center gap-1 text-[11px] font-bold text-ai">
             <ThermometerSun size={13} />
             Thawed · use within 3 days
           </span>
@@ -100,7 +100,7 @@ export default function ItemSheet({
         <button
           onClick={() => setQty(item.quantityPercent - 25)}
           aria-label={`Less ${item.name}`}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-wood bg-white text-[#5B3A22] transition active:scale-95"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-wood bg-white text-brown transition active:scale-95"
         >
           <Minus size={18} strokeWidth={2.5} />
         </button>
@@ -112,40 +112,40 @@ export default function ItemSheet({
           onClick={() => setQty(item.quantityPercent + 25)}
           disabled={item.quantityPercent >= 100}
           aria-label={`More ${item.name}`}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-wood bg-white text-[#5B3A22] transition active:scale-95 disabled:opacity-40"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-wood bg-white text-brown transition active:scale-95 disabled:opacity-40"
         >
           <Plus size={18} strokeWidth={2.5} />
         </button>
       </div>
 
       {item.storageTip && (
-        <p className="mt-4 rounded-xl bg-[#F1E7D0] px-3.5 py-3 text-sm font-bold leading-snug text-[#5B3A22]">Storage tip: {item.storageTip}</p>
+        <p className="mt-4 rounded-xl bg-tip px-3.5 py-3 text-sm font-bold leading-snug text-brown">Storage tip: {item.storageTip}</p>
       )}
 
       {frozen ? (
-        <button onClick={onThaw} className="mt-4 flex h-[54px] w-full items-center justify-center rounded-[14px] bg-freeze text-base font-extrabold text-white transition active:scale-95">
+        <button onClick={onThaw} className="btn btn-freeze mt-4 h-[54px] w-full text-base">
           Thaw · move to fridge
         </button>
       ) : canFreeze(item) ? (
-        <button onClick={onFreeze} className="mt-4 flex h-[54px] w-full items-center justify-center rounded-[14px] bg-freeze text-base font-extrabold text-white transition active:scale-95">
+        <button onClick={onFreeze} className="btn btn-freeze mt-4 h-[54px] w-full text-base">
           Freeze it · keeps ~{humanDays(freezeDays(item) ?? 0)}
         </button>
       ) : null}
 
       <div className="mt-3 grid grid-cols-3 gap-2">
-        <button onClick={onDonate} className={`${OUTLINE} bg-[#F6E2B0]`}>
+        <button onClick={onDonate} className="btn btn-outline h-12 bg-soon-bg px-1">
           Donate
         </button>
-        <a href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.name)}`} target="_blank" rel="noopener noreferrer" className={`${OUTLINE} bg-paper`}>
+        <a href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.name)}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline h-12 px-1">
           Reorder
         </a>
-        <button onClick={onRemove} className={`${OUTLINE} bg-[#F3D2C4]`}>
+        <button onClick={onRemove} className="btn btn-outline h-12 bg-urgent-bg px-1">
           Remove
         </button>
       </div>
 
-      <button onClick={onSeeRecipes} className="mb-4 mt-3 flex h-[50px] w-full items-center justify-center rounded-[14px] bg-olive font-extrabold text-white transition active:scale-95">
-        See recipes using this
+      <button onClick={onSeeRecipes} className="btn btn-primary mb-5 mt-3 h-[50px] w-full">
+        see recipes using this
       </button>
     </SheetFrame>
   );

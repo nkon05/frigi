@@ -17,40 +17,27 @@ export default function DonateSheet({
   onDonated: () => void;
 }) {
   return (
-    <Sheet title={`Donate ${item.name}`} subtitle="Won't finish it? Someone nearby could use it." onClose={onClose}>
+    <Sheet title={`donate ${item.name}`} subtitle="Won't finish it? Someone nearby could use it." onClose={onClose}>
       <div className="mt-4 space-y-2.5">
-        <a
-          href={FOOD_BANKS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex min-h-12 items-center gap-3 rounded-2xl bg-white px-4 font-medium text-stone-800 shadow-[0_2px_12px_rgba(28,25,23,0.06)] transition active:scale-[0.98]"
-        >
-          <HeartHandshake size={20} className="shrink-0 text-green-600" />
-          <span className="flex-1">Find food banks near me</span>
-          <ExternalLink size={16} className="text-stone-400" />
+        <a href={FOOD_BANKS_URL} target="_blank" rel="noopener noreferrer" className="btn btn-outline min-h-12 w-full justify-start gap-3 px-4">
+          <HeartHandshake size={20} className="shrink-0 text-olive" />
+          <span className="flex-1 text-left">find food banks near me</span>
+          <ExternalLink size={16} className="text-muted" />
         </a>
-        <a
-          href={MAPS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex min-h-12 items-center gap-3 rounded-2xl bg-white px-4 font-medium text-stone-800 shadow-[0_2px_12px_rgba(28,25,23,0.06)] transition active:scale-[0.98]"
-        >
-          <MapPin size={20} className="shrink-0 text-green-600" />
-          <span className="flex-1">Search food pantries on Maps</span>
-          <ExternalLink size={16} className="text-stone-400" />
+        <a href={MAPS_URL} target="_blank" rel="noopener noreferrer" className="btn btn-outline min-h-12 w-full justify-start gap-3 px-4">
+          <MapPin size={20} className="shrink-0 text-olive" />
+          <span className="flex-1 text-left">search food pantries on maps</span>
+          <ExternalLink size={16} className="text-muted" />
         </a>
       </div>
 
-      <p className="mt-3 flex gap-1.5 text-xs leading-snug text-stone-500">
+      <p className="mt-3 flex gap-1.5 rounded-xl bg-tip px-3.5 py-3 text-xs font-bold leading-snug text-brown">
         <Info size={14} className="mt-px shrink-0" />
         Policies vary. Many food banks only accept unopened, unexpired items, so call ahead.
       </p>
 
-      <button
-        onClick={onDonated}
-        className="mb-3 mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-green-600 font-semibold text-white shadow-md shadow-green-600/20 transition active:scale-95"
-      >
-        Mark as donated
+      <button onClick={onDonated} className="btn btn-primary mb-5 mt-4 h-[50px] w-full">
+        mark as donated
       </button>
     </Sheet>
   );

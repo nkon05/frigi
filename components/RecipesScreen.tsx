@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Award, Check, ChefHat, ChevronDown, Clock, Search, ShoppingBasket, Snowflake, Sparkles } from "lucide-react";
-import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
-import { urgency, type PantryItem } from "@/lib/pantry";
+import { Banner, EmptyState, LoadingCard, URGENCY_DOT, URGENCY_PILL } from "@/components/ui";
+import { sortByExpiry, urgency, type PantryItem } from "@/lib/pantry";
 import { defaultSelection, rankRecipes, toRecipeInput, type RankedRecipe, type Recipe } from "@/lib/recipes";
 import { allowedByCategory, RESTRICTIONS, type RestrictionId } from "@/lib/restrictions";
 
-const DOT = { red: "bg-red-500", yellow: "bg-amber-400", green: "bg-green-500" };
-const CHIP = { red: "bg-red-100 text-red-800", yellow: "bg-amber-100 text-amber-900", green: "bg-green-100 text-green-800" };
 
 export default function RecipesScreen({
   items,
@@ -34,7 +32,7 @@ export default function RecipesScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to a new focus request
   useEffect(() => setChosen(focus.ids), [focus.key]);
 
-  const sorted = [...items].filter((i) => i.quantityPercent > 0).sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+  const sorted = sortByExpiry(items.filter((i) => i.quantityPercent > 0));
   const allowed = (i: PantryItem) => allowedByCategory(i.category, restrictions);
   const selected = new Set((chosen ?? defaultSelection(items)).filter((id) => sorted.some((i) => i.id === id && allowed(i))));
   const labels = RESTRICTIONS.filter((r) => restrictions.includes(r.id)).map((r) => r.label);
@@ -77,7 +75,7 @@ export default function RecipesScreen({
     return (
       <EmptyState
         icon={ChefHat}
-        title="Nothing to cook with yet"
+        title="nothing to cook with yet"
         body="Scan a receipt first, then come back for recipe ideas that use up what's expiring."
       />
     );
@@ -85,31 +83,31 @@ export default function RecipesScreen({
 
   return (
     <div>
-      <div className={`${CARD} mb-4 p-4`}>
-        <label className="flex min-h-12 items-center gap-2 rounded-xl bg-stone-100 px-3 focus-within:ring-2 focus-within:ring-green-500">
-          <Search size={18} className="shrink-0 text-stone-400" />
+      <div className="card mb-4 p-4">
+        <label className="field flex items-center gap-2 focus-within:border-olive">
+          <Search size={18} className="shrink-0 text-muted" />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !loading && findRecipes()}
             placeholder="pasta, high protein, quick dinner..."
-            className="min-w-0 flex-1 bg-transparent py-2 text-stone-800 outline-none placeholder:text-stone-400"
+            className="min-w-0 flex-1 bg-transparent py-2 font-bold text-ink outline-none placeholder:font-medium placeholder:text-muted/70"
           />
         </label>
 
-        <div className="mt-4 flex items-baseline justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Cook with</p>
-          <div className="flex gap-3 text-xs font-medium">
-            <button onClick={() => setChosen(null)} className="min-h-8 text-green-700">
-              Expiring
+        <div className="mt-4 flex items-center justify-between">
+          <p className="section-label">Cook with</p>
+          <div className="-mr-2 flex text-xs font-extrabold">
+            <button onClick={() => setChosen(null)} className="min-h-11 px-2 text-olive-text">
+              expiring
             </button>
-            <button onClick={() => setChosen([])} className="min-h-8 text-stone-500">
-              Clear
+            <button onClick={() => setChosen([])} className="min-h-11 px-2 text-muted">
+              clear
             </button>
           </div>
         </div>
-        <div className="mt-2 flex max-h-44 flex-wrap gap-1.5 overflow-y-auto">
+        <div className="mt-1 flex max-h-48 flex-wrap gap-1.5 overflow-y-auto p-0.5">
           {sorted.map((i) => {
             const on = selected.has(i.id);
             const ok = allowed(i);
@@ -120,23 +118,19 @@ export default function RecipesScreen({
                 disabled={!ok}
                 aria-pressed={on}
                 title={ok ? undefined : "Not allowed by your diet settings"}
-                className={`flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition active:scale-95 ${
-                  !ok
-                    ? "border-stone-200 text-stone-300 line-through"
-                    : on
-                      ? "border-green-600 bg-green-50 font-medium text-green-900"
-                      : "border-stone-200 bg-white text-stone-600"
+                className={`flex min-h-10 items-center gap-1.5 rounded-full border-2 px-3 text-sm font-bold transition active:scale-95 ${
+                  !ok ? "border-wall bg-wall text-muted/50 line-through" : on ? "border-olive bg-fine-bg text-fine" : "border-sand bg-paper text-brown"
                 }`}
               >
-                <span className={`h-2 w-2 shrink-0 rounded-full ${DOT[urgency(i)]}`} />
-                {i.location === "freezer" && <Snowflake size={12} className="text-sky-500" />}
+                <span className={`h-2 w-2 shrink-0 rounded-full ${URGENCY_DOT[urgency(i)]}`} />
+                {i.location === "freezer" && <Snowflake size={12} className="text-freeze" />}
                 {i.name}
-                {on && <Check size={14} strokeWidth={3} className="text-green-700" />}
+                {on && <Check size={14} strokeWidth={3} />}
               </button>
             );
           })}
         </div>
-        <p className="mt-2 text-xs text-stone-500">
+        <p className="mt-2 text-xs font-bold text-muted">
           {selected.size
             ? `${selected.size} selected`
             : search.trim()
@@ -144,40 +138,36 @@ export default function RecipesScreen({
               : "Nothing selected: we'll use everything in your pantry."}
         </p>
 
-        <button onClick={onEditSettings} className="-mx-1 min-h-11 px-1 text-left text-sm">
+        <button onClick={onEditSettings} className="-mx-1 min-h-11 px-1 text-left text-sm font-bold">
           {labels.length ? (
-            <span className="text-stone-500">
-              Diet: <span className="font-medium text-green-700">{labels.join(", ")}</span> <span className="text-stone-400">· Edit</span>
+            <span className="text-muted">
+              Diet: <span className="text-olive-text">{labels.join(", ")}</span> <span className="text-muted/70">· edit</span>
             </span>
           ) : (
-            <span className="text-stone-400">
-              No allergies or diet set · <span className="text-green-700">Add</span>
+            <span className="text-muted">
+              No allergies or diet set · <span className="text-olive-text">add</span>
             </span>
           )}
         </button>
 
-        <button
-          onClick={findRecipes}
-          disabled={loading}
-          className="mt-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 font-semibold text-white shadow-md shadow-green-600/20 transition active:scale-95 disabled:opacity-60"
-        >
+        <button onClick={findRecipes} disabled={loading} className="btn btn-primary mb-1 mt-1 h-12 w-full">
           <Sparkles size={18} />
-          Find recipes
+          find recipes
         </button>
       </div>
 
       {loading && (
         <div className="mb-4 space-y-3">
-          <LoadingCard title="Finding the best recipes for your pantry..." subtitle="Ranking them by what they use up" />
+          <LoadingCard title="finding the best recipes for your pantry..." subtitle="Ranking them by what they use up" />
           {[0, 1, 2].map((i) => (
-            <div key={i} className={`${CARD} animate-pulse space-y-3 p-4`}>
-              <div className="h-5 w-3/4 rounded bg-stone-100" />
-              <div className="h-4 w-1/2 rounded bg-stone-100" />
+            <div key={i} className="card animate-pulse space-y-3 p-4">
+              <div className="h-5 w-3/4 rounded bg-tip" />
+              <div className="h-4 w-1/2 rounded bg-tip" />
               <div className="flex gap-2">
-                <div className="h-7 w-20 rounded-full bg-stone-100" />
-                <div className="h-7 w-24 rounded-full bg-stone-100" />
+                <div className="h-7 w-20 rounded-full bg-tip" />
+                <div className="h-7 w-24 rounded-full bg-tip" />
               </div>
-              <div className="h-11 rounded-xl bg-stone-100" />
+              <div className="h-11 rounded-xl bg-tip" />
             </div>
           ))}
         </div>
@@ -196,8 +186,8 @@ export default function RecipesScreen({
 
       {!loading && recipes.length > 0 && (
         <>
-          <p className="mb-2 px-1 text-xs text-stone-500">Ranked by how much of your expiring food each recipe uses.</p>
-          <ul className="space-y-3">
+          <p className="mb-2 px-1 text-xs font-bold text-muted">Ranked by how much of your expiring food each recipe uses.</p>
+          <ul className="space-y-4">
             {recipes.map((r, i) => (
               <RecipeCard key={`${r.title}-${i}`} recipe={r} items={items} best={i === 0} made={made.includes(i)} onMade={() => markMade(i)} />
             ))}
@@ -226,37 +216,32 @@ function RecipeCard({
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
   return (
-    <li className={`${CARD} animate-fade-up p-4 ${best ? "ring-2 ring-green-500" : ""}`}>
+    <li className={`card animate-fade-up p-4 ${best ? "ring-2 ring-olive" : ""}`}>
       {best && (
-        <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-green-600 px-2.5 py-1 text-xs font-semibold text-white">
+        <p className="pill mb-2 bg-olive px-2.5 py-1 text-white">
           <Award size={13} />
-          Best match: uses {plural(recipe.usedCount, "item")}
+          best match: uses {plural(recipe.usedCount, "item")}
           {recipe.expiringCount > 0 && `, ${recipe.expiringCount} expiring`}
         </p>
       )}
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-lg font-semibold leading-snug text-stone-900">{recipe.title}</h3>
-        <span className="flex shrink-0 items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
+        <h3 className="font-display text-xl font-bold leading-snug text-ink">{recipe.title}</h3>
+        <span className="pill shrink-0 bg-tip px-2.5 py-1 text-brown">
           <Clock size={12} />
           {recipe.timeMinutes} min
         </span>
       </div>
-      {recipe.description && <p className="mt-1 text-sm text-stone-600">{recipe.description}</p>}
+      {recipe.description && <p className="mt-1 text-sm text-muted">{recipe.description}</p>}
 
-      <p className="mt-3 text-xs font-semibold text-stone-700">
+      <p className="mt-3 text-xs font-extrabold text-ink">
         Uses {recipe.usedCount} of your items
-        {recipe.expiringCount > 0 && <span className="text-red-700"> · {recipe.expiringCount} expiring soon</span>}
+        {recipe.expiringCount > 0 && <span className="text-terra"> · {recipe.expiringCount} expiring soon</span>}
       </p>
       {used.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {used.map((i) => (
-            <span
-              key={i.id}
-              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-                i.location === "freezer" ? "bg-sky-100 text-sky-800" : CHIP[urgency(i)]
-              }`}
-            >
-              {i.location === "freezer" ? <Snowflake size={11} /> : <span className={`h-1.5 w-1.5 rounded-full ${DOT[urgency(i)]}`} />}
+            <span key={i.id} className={`pill px-2.5 py-1 ${i.location === "freezer" ? "pill-freeze" : URGENCY_PILL[urgency(i)]}`}>
+              {i.location === "freezer" ? <Snowflake size={11} /> : <span className={`h-1.5 w-1.5 rounded-full ${URGENCY_DOT[urgency(i)]}`} />}
               {i.name}
             </span>
           ))}
@@ -264,23 +249,23 @@ function RecipeCard({
       )}
 
       {recipe.extraIngredients.length > 0 && (
-        <p className="mt-3 flex gap-1.5 text-sm text-stone-600">
-          <ShoppingBasket size={15} className="mt-0.5 shrink-0 text-stone-400" />
+        <p className="mt-3 flex gap-1.5 rounded-xl bg-tip px-3 py-2 text-sm text-brown">
+          <ShoppingBasket size={15} className="mt-0.5 shrink-0" />
           <span>
-            <span className="font-medium text-stone-700">To buy: </span>
+            <span className="font-extrabold">to buy: </span>
             {recipe.extraIngredients.join(", ")}
           </span>
         </p>
       )}
 
-      <button onClick={() => setOpen(!open)} className="-mx-1 mt-2 flex min-h-11 items-center gap-1 px-1 text-sm font-medium text-stone-600">
-        {open ? "Hide" : "Show"} ingredients & steps
+      <button onClick={() => setOpen(!open)} className="-mx-1 mt-2 flex min-h-11 items-center gap-1 px-1 text-sm font-extrabold text-brown">
+        {open ? "hide" : "show"} ingredients & steps
         <ChevronDown size={16} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="animate-fade-up mb-2 space-y-3">
           {recipe.ingredients.length > 0 && (
-            <ul className="list-disc space-y-0.5 pl-5 text-sm text-stone-700">
+            <ul className="list-disc space-y-0.5 pl-5 text-sm text-ink marker:text-wood">
               {recipe.ingredients.map((ing, i) => (
                 <li key={i}>{ing}</li>
               ))}
@@ -288,10 +273,8 @@ function RecipeCard({
           )}
           <ol className="space-y-2">
             {recipe.steps.map((s, i) => (
-              <li key={i} className="flex gap-3 text-sm leading-relaxed text-stone-700">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-semibold text-stone-500">
-                  {i + 1}
-                </span>
+              <li key={i} className="flex gap-3 text-sm leading-relaxed text-ink">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-tip text-xs font-extrabold text-brown">{i + 1}</span>
                 {s}
               </li>
             ))}
@@ -299,19 +282,13 @@ function RecipeCard({
         </div>
       )}
 
-      <button
-        onClick={onMade}
-        disabled={made}
-        className={`mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition active:scale-95 ${
-          made ? "bg-green-50 text-green-700" : "border-2 border-green-600 text-green-700 active:bg-green-50"
-        }`}
-      >
+      <button onClick={onMade} disabled={made} className={`btn mb-1 mt-2 w-full text-sm ${made ? "bg-fine-bg text-fine" : "btn-primary"}`}>
         {made ? (
           <>
-            <Check size={16} strokeWidth={3} /> Made it! Pantry updated
+            <Check size={16} strokeWidth={3} /> made it! pantry updated
           </>
         ) : (
-          "I made this"
+          "i made this"
         )}
       </button>
     </li>

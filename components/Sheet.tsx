@@ -77,3 +77,32 @@ export default function Sheet({
     </SheetFrame>
   );
 }
+
+// Yes/no question as a bottom sheet (replaces the browser's confirm())
+export function ConfirmSheet({
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+  onClose,
+}: {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Sheet title={title} onClose={onClose}>
+      <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
+      <div className="mb-4 mt-5 grid grid-cols-2 gap-3">
+        <button onClick={onClose} className="btn btn-outline">
+          cancel
+        </button>
+        <button onClick={onConfirm} className="btn btn-primary">
+          {confirmLabel}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
