@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { BadgeCheck, Minus, Pencil, Plus, Sparkles, ThermometerSun } from "lucide-react";
 import { SheetFrame } from "@/components/Sheet";
-import { QtyBar } from "@/components/ShelfTile";
-import { URGENCY_PILL } from "@/components/ui";
+import { QtyBar, URGENCY_PILL } from "@/components/ui";
 import {
   canFreeze,
   daysBetween,

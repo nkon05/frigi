@@ -288,7 +288,9 @@ function RecipeCard({
             <Check size={16} strokeWidth={3} /> made it! pantry updated
           </>
         ) : (
-          "i made this"
+          <>
+            <Check size={16} strokeWidth={3} /> i made this
+          </>
         )}
       </button>
     </li>

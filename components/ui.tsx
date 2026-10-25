@@ -70,3 +70,12 @@ export function Switch({ on }: { on: boolean }) {
     </span>
   );
 }
+
+// Quantity bar (jars and the item sheet)
+export function QtyBar({ percent, height }: { percent: number; height: number }) {
+  return (
+    <div className="w-full overflow-hidden rounded-full bg-track" style={{ height }}>
+      <div className="h-full rounded-full bg-fill transition-all duration-300" style={{ width: `${percent}%` }} />
+    </div>
+  );
+}

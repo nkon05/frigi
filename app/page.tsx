@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Bell, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import DigestCard from "@/components/DigestCard";
 import DigestSettings from "@/components/DigestSettings";
 import DonateSheet from "@/components/DonateSheet";
@@ -10,7 +10,8 @@ import ItemSheet from "@/components/ItemSheet";
 import RecipesScreen from "@/components/RecipesScreen";
 import RemoveSheet from "@/components/RemoveSheet";
 import { ConfirmSheet } from "@/components/Sheet";
-import Shelves, { Plank } from "@/components/Shelf";
+import { JarFrame } from "@/components/Jar";
+import Shelves, { JAR_WIDTH, Plank, ShelfRow } from "@/components/Shelf";
 import SettingsScreen from "@/components/SettingsScreen";
 import TabBar, { type Tab } from "@/components/TabBar";
 import { Banner, LoadingCard, Toast } from "@/components/ui";
@@ -33,7 +34,6 @@ import { isIOSNotInstalled, notifyStatus, registerServiceWorker, requestNotifica
 import {
   addDays,
   daysBetween,
-  daysLeft,
   freezeDays,
   humanDays,
   loadPantry,
@@ -103,12 +103,6 @@ export default function Home() {
     navigator.serviceWorker?.addEventListener("message", onMessage);
     return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
   }, []);
-
-  // Expired or expiring within 2 days, and not used up
-  const expiring = items
-    .filter((i) => i.quantityPercent > 0 && daysLeft(i) <= 2)
-    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
-  const expiringNames = expiring.map((i) => i.name);
 
   // ---- Daily digest (client-side only: runs when the app is open) ----
   const digest = computeDigest(items);
@@ -362,18 +356,6 @@ export default function Home() {
               </span>
             )}
           </div>
-          {/* On Pantry, the digest card covers this */}
-          {expiring.length > 0 && tab !== "pantry" && (
-            <ExpiringBanner
-              names={expiringNames}
-              canEnableNotifications={!digestSettings.enabled && notifStatus !== "unsupported" && notifStatus !== "denied"}
-              onOpen={() => seeRecipes()}
-              onEnableNotifications={async () => {
-                await toggleDigest(true);
-                setToast({ text: "Daily digest is on. Change the time in Settings.", key: Date.now() });
-              }}
-            />
-          )}
         </header>
 
         <main className="flex-1 overflow-y-auto overscroll-contain pb-32 pt-2">
@@ -557,20 +539,23 @@ export default function Home() {
 
 function ScanningState() {
   return (
-    <div className="mb-4">
+    <div className="mb-2">
       <div className="mb-4 px-4">
         <LoadingCard title="reading your receipt..." subtitle="Finding food items and expiry dates" />
       </div>
-      <div className="grid grid-cols-3 gap-2 px-4">
+      <ShelfRow>
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-[112px] animate-pulse rounded-[12px_12px_4px_4px] bg-paper/80 p-2">
-            <div className="h-5 w-5 rounded-full bg-sand/60" />
-            <div className="mt-2 h-3 w-3/4 rounded bg-sand/60" />
-            <div className="mt-3 h-4 w-1/2 rounded-full bg-sand/60" />
+          <div key={i} className={`flex animate-pulse flex-col items-center ${JAR_WIDTH}`}>
+            <JarFrame lid="bg-sand">
+              <span className="block h-[22px] w-[22px] rounded-full bg-sand/60" />
+              <span className="mt-2 block h-3 w-3/4 rounded bg-sand/60" />
+              <span className="mt-3 block h-4 w-1/2 rounded-full bg-sand/60" />
+              <span className="mt-3 block h-[5px] w-full rounded-full bg-sand/60" />
+              <span className="mt-2 block h-3 w-1/3 rounded bg-sand/60" />
+            </JarFrame>
           </div>
         ))}
-      </div>
-      <Plank />
+      </ShelfRow>
     </div>
   );
 }
@@ -586,44 +571,6 @@ function EmptyShelf({ text, onLoadDemo }: { text: string; onLoadDemo?: () => voi
             or load demo data
           </button>
         </div>
-      )}
-    </div>
-  );
-}
-
-// Shown at the top of non-Pantry tabs (Pantry has the digest card instead)
-function ExpiringBanner({
-  names,
-  canEnableNotifications,
-  onOpen,
-  onEnableNotifications,
-}: {
-  names: string[];
-  canEnableNotifications: boolean;
-  onOpen: () => void;
-  onEnableNotifications: () => void;
-}) {
-  return (
-    <div className="animate-fade-up mt-3 overflow-hidden rounded-2xl border-2 border-terra bg-paper">
-      <button onClick={onOpen} className="flex min-h-12 w-full items-center gap-3 px-3 py-2.5 text-left transition active:bg-tip">
-        <AlertTriangle size={18} className="shrink-0 text-terra" />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-extrabold text-ink">
-            {names.length} item{names.length === 1 ? "" : "s"} expiring soon
-          </span>
-          <span className="block truncate text-xs font-bold text-muted">{names.join(", ")}</span>
-        </span>
-        <span className="pill shrink-0 bg-urgent-bg px-2.5 py-1.5 text-[13px] text-terra">
-          see recipes <ChevronRight size={14} />
-        </span>
-      </button>
-      {canEnableNotifications && (
-        <button
-          onClick={onEnableNotifications}
-          className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t-2 border-wall text-xs font-extrabold text-brown transition active:bg-tip"
-        >
-          <Bell size={14} /> get a daily digest
-        </button>
       )}
     </div>
   );
