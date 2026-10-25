@@ -72,6 +72,7 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [toast, setToast] = useState<{ text: string; key: number } | null>(null);
   const [pantryView, setPantryView] = useState<"main" | "freezer">("main");
+  const [recipesFocus, setRecipesFocus] = useState(0); // bump to reset the recipe picker to expiring items
 
   useEffect(() => {
     setItems(loadPantry());
@@ -131,6 +132,12 @@ export default function Home() {
       clearTimeout(timer);
     };
   }, [loaded, maybeSendDigest, digestSettings.time]);
+
+  // Recipes tab with the expiring items pre-selected
+  function seeRecipes() {
+    setRecipesFocus((k) => k + 1);
+    goTab("recipes");
+  }
 
   function updateDigestSettings(next: DigestSettingsT) {
     setDigestSettings(next);
@@ -349,7 +356,7 @@ export default function Home() {
             <ExpiringBanner
               names={expiringNames}
               canEnableNotifications={!digestSettings.enabled && notifStatus !== "unsupported" && notifStatus !== "denied"}
-              onOpen={() => goTab("recipes")}
+              onOpen={seeRecipes}
               onEnableNotifications={async () => {
                 await toggleDigest(true);
                 setToast({ text: "Daily digest is on. Change the time in Settings.", key: Date.now() });
@@ -395,7 +402,7 @@ export default function Home() {
                 {!digestDismissed && (
                   <DigestCard
                     digest={digest}
-                    onSeeRecipes={() => goTab("recipes")}
+                    onSeeRecipes={seeRecipes}
                     onDismiss={() => {
                       dismissToday();
                       setDigestDismissed(true);
@@ -452,6 +459,7 @@ export default function Home() {
               restrictions={restrictions}
               onMade={handleMade}
               onEditSettings={() => setDietOpen(true)}
+              focusKey={recipesFocus}
             />
           </div>
 

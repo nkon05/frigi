@@ -1,47 +1,71 @@
 import { daysLeft, type Category, type PantryItem } from "@/lib/pantry";
-import { allowedByCategory, type RestrictionId } from "@/lib/restrictions";
 
 export type Recipe = {
   title: string;
-  ingredientsUsed: string[]; // names matching pantry items
-  extraIngredients: string[];
-  steps: string[];
+  description: string;
   timeMinutes: number;
+  ingredients: string[]; // full list with amounts, e.g. "2 cups baby spinach"
+  ingredientsUsed: string[]; // pantry item ids
+  extraIngredients: string[]; // things to buy
+  steps: string[];
 };
 
 // What the client sends to /api/recipes for each pantry item
-export type RecipeInputItem = { name: string; category: Category; daysLeft: number; frozen?: boolean };
+export type RecipeInputItem = { id: string; name: string; category: Category; daysLeft: number; frozen: boolean };
 
-const MAX_ITEMS = 8;
+export const PRESELECT_DAYS = 3;
 
-const URGENT_DAYS = 5;
+export const toRecipeInput = (i: PantryItem): RecipeInputItem => ({
+  id: i.id,
+  name: i.name,
+  category: i.category,
+  daysLeft: daysLeft(i),
+  frozen: i.location === "freezer",
+});
 
-// Soonest-expiring items that are still usable and allowed by the restrictions.
-// Fresh (non-freezer) items about to expire always come first, so frozen food never outranks them.
-export function pickItemsForRecipes(items: PantryItem[], restrictions: RestrictionId[]): PantryItem[] {
-  const urgentFresh = (i: PantryItem) => i.location !== "freezer" && daysLeft(i) <= URGENT_DAYS;
-  return items
-    .filter((i) => i.quantityPercent > 0 && daysLeft(i) >= 0 && allowedByCategory(i.category, restrictions))
-    .sort((a, b) => Number(urgentFresh(b)) - Number(urgentFresh(a)) || a.expiryDate.localeCompare(b.expiryDate))
-    .slice(0, MAX_ITEMS);
+// Picker default: anything still good that expires within 3 days
+export function defaultSelection(items: PantryItem[]): string[] {
+  return items.filter((i) => i.quantityPercent > 0 && daysLeft(i) >= 0 && daysLeft(i) <= PRESELECT_DAYS).map((i) => i.id);
 }
 
-// "I made this": take 25% off each used ingredient. If several pantry items share
-// a name (e.g. milk from two receipts), only the soonest-expiring one is used.
+// ---- Ranking (in code, not the model) ---------------------------------------
+
+// Urgency weight per pantry item used: frozen 0.5; else expired / within 2 days 4, within 5 days 2, later 1
+export function urgencyWeight(i: PantryItem): number {
+  if (i.location === "freezer") return 0.5;
+  const d = daysLeft(i);
+  if (d <= 2) return 4;
+  if (d <= 5) return 2;
+  return 1;
+}
+
+const EXTRA_PENALTY = 0.4;
+
+export const isExpiringSoon = (i: PantryItem) => i.location !== "freezer" && daysLeft(i) <= PRESELECT_DAYS;
+
+export type RankedRecipe = Recipe & { score: number; usedCount: number; expiringCount: number };
+
+export function rankRecipes(recipes: Recipe[], items: PantryItem[]): RankedRecipe[] {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  return recipes
+    .map((r) => {
+      const used = r.ingredientsUsed.map((id) => byId.get(id)).filter((i): i is PantryItem => !!i);
+      return {
+        ...r,
+        score: used.reduce((s, i) => s + urgencyWeight(i), 0) - EXTRA_PENALTY * r.extraIngredients.length,
+        usedCount: used.length,
+        expiringCount: used.filter(isExpiringSoon).length,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+// "I made this": take 25% off each pantry item the recipe used (by id)
 export function applyRecipeMade(items: PantryItem[], recipe: Recipe): { next: PantryItem[]; updated: string[] } {
-  const ids = new Set<string>();
-  const updated: string[] = [];
-  for (const name of recipe.ingredientsUsed) {
-    const match = items
-      .filter((i) => i.name.toLowerCase() === name.toLowerCase() && i.quantityPercent > 0 && !ids.has(i.id))
-      .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0];
-    if (match) {
-      ids.add(match.id);
-      updated.push(match.name);
-    }
-  }
+  const ids = new Set(recipe.ingredientsUsed);
+  const updated = items.filter((i) => ids.has(i.id) && i.quantityPercent > 0).map((i) => i.name);
   const next = items.map((i) =>
-    ids.has(i.id) ? { ...i, quantityPercent: Math.max(0, i.quantityPercent - 25) } : i
+    ids.has(i.id) && i.quantityPercent > 0 ? { ...i, quantityPercent: Math.max(0, i.quantityPercent - 25) } : i
   );
   return { next, updated };
 }
