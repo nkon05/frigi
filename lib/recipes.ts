@@ -10,15 +10,19 @@ export type Recipe = {
 };
 
 // What the client sends to /api/recipes for each pantry item
-export type RecipeInputItem = { name: string; category: Category; daysLeft: number };
+export type RecipeInputItem = { name: string; category: Category; daysLeft: number; frozen?: boolean };
 
 const MAX_ITEMS = 8;
 
-// Soonest-expiring items that are still usable and allowed by the restrictions
+const URGENT_DAYS = 5;
+
+// Soonest-expiring items that are still usable and allowed by the restrictions.
+// Fresh (non-freezer) items about to expire always come first, so frozen food never outranks them.
 export function pickItemsForRecipes(items: PantryItem[], restrictions: RestrictionId[]): PantryItem[] {
+  const urgentFresh = (i: PantryItem) => i.location !== "freezer" && daysLeft(i) <= URGENT_DAYS;
   return items
     .filter((i) => i.quantityPercent > 0 && daysLeft(i) >= 0 && allowedByCategory(i.category, restrictions))
-    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+    .sort((a, b) => Number(urgentFresh(b)) - Number(urgentFresh(a)) || a.expiryDate.localeCompare(b.expiryDate))
     .slice(0, MAX_ITEMS);
 }
 

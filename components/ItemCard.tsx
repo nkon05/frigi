@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { BadgeCheck, HeartHandshake, Lightbulb, Minus, Pencil, Plus, ShoppingCart, Sparkles, Trash2 } from "lucide-react";
-import { daysBetween, daysLeft, formatDate, type PantryItem, type ShelfLifeSource } from "@/lib/pantry";
+import { BadgeCheck, HeartHandshake, Lightbulb, Minus, Pencil, Plus, ShoppingCart, Snowflake, Sparkles, ThermometerSun, Trash2 } from "lucide-react";
+import { canFreeze, daysBetween, daysLeft, formatDate, freezeDays, humanDays, type PantryItem, type ShelfLifeSource } from "@/lib/pantry";
 
-const CATEGORY_EMOJI: Record<string, string> = {
+export const CATEGORY_EMOJI: Record<string, string> = {
   produce: "🥬",
   dairy: "🥛",
   meat: "🥩",
@@ -40,21 +40,31 @@ export default function ItemCard({
   onChange,
   onDelete,
   onDonate,
+  onFreeze,
+  onThaw,
 }: {
   item: PantryItem;
   onChange: (item: PantryItem) => void;
   onDelete: () => void;
   onDonate: () => void;
+  onFreeze: () => void;
+  onThaw: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const level = urgency(item);
   const style = STYLES[level];
+  const frozen = item.location === "freezer";
+  const freezable = canFreeze(item);
   const setQty = (q: number) => onChange({ ...item, quantityPercent: Math.min(100, Math.max(0, q)) });
 
   return (
-    <li className="animate-fade-up rounded-2xl bg-white p-4 shadow-[0_2px_12px_rgba(28,25,23,0.06)]">
+    <li
+      className={`animate-fade-up rounded-2xl p-4 shadow-[0_2px_12px_rgba(28,25,23,0.06)] ${
+        frozen ? "bg-sky-50/60 ring-1 ring-sky-200" : "bg-white"
+      }`}
+    >
       <div className="flex gap-3">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${style.emoji}`}>
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${frozen ? "bg-sky-100" : style.emoji}`}>
           {CATEGORY_EMOJI[item.category] ?? "🛒"}
         </div>
 
@@ -78,6 +88,17 @@ export default function ItemCard({
               >
                 <ShoppingCart size={18} />
               </a>
+              {/* Donate: tinted when expired or expiring within 2 days */}
+              <button
+                onClick={onDonate}
+                aria-label={`Donate ${item.name}`}
+                title="Donate"
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition active:scale-95 ${
+                  level === "red" ? "bg-amber-50 text-amber-600 active:bg-amber-100" : "text-stone-400 hover:text-amber-600 active:bg-amber-50"
+                }`}
+              >
+                <HeartHandshake size={18} />
+              </button>
               <button
                 onClick={onDelete}
                 aria-label={`Delete ${item.name}`}
@@ -103,6 +124,7 @@ export default function ItemCard({
                     expiryDate: v,
                     shelfLifeDays: daysBetween(item.purchaseDate, v),
                     shelfLifeSource: "manual",
+                    thawed: false,
                   });
                 }}
                 className="min-h-11 rounded-xl border border-stone-200 bg-stone-50 px-3"
@@ -119,7 +141,14 @@ export default function ItemCard({
               </button>
             )}
           </div>
-          <SourceBadge source={item.shelfLifeSource} />
+          {item.thawed ? (
+            <p className="mt-1.5 flex items-center gap-1 text-[11px] font-medium text-amber-700">
+              <ThermometerSun size={12} />
+              Thawed · use within 3 days
+            </p>
+          ) : (
+            <SourceBadge source={item.shelfLifeSource} />
+          )}
 
           <div className="-ml-3 mt-1 flex items-center gap-1">
             <QtyButton label={`Less ${item.name}`} disabled={item.quantityPercent <= 0} onClick={() => setQty(item.quantityPercent - 25)}>
@@ -146,26 +175,34 @@ export default function ItemCard({
             </p>
           )}
 
-          {/* Donate: prominent when expired or expiring within 2 days, subtle otherwise */}
-          {level === "red" ? (
+          {/* Freezer actions: Thaw for frozen items; Freeze it (highlighted within 3 days of expiry) for freezable ones */}
+          {frozen ? (
             <button
-              onClick={onDonate}
-              className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber-100 text-sm font-semibold text-amber-900 transition active:scale-95"
+              onClick={onThaw}
+              className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-sky-200 text-sm font-semibold text-sky-800 transition active:scale-95 active:bg-sky-100"
             >
-              <HeartHandshake size={16} />
-              Donate it
+              <ThermometerSun size={16} />
+              Thaw · move to fridge
             </button>
-          ) : (
+          ) : freezable && daysLeft(item) <= 3 ? (
+            <button
+              onClick={onFreeze}
+              className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-100 text-sm font-semibold text-sky-800 transition active:scale-95"
+            >
+              <Snowflake size={16} />
+              Freeze it · keeps ~{humanDays(freezeDays(item) ?? 0)}
+            </button>
+          ) : freezable ? (
             <div className="-mb-2 mt-1 flex justify-end">
               <button
-                onClick={onDonate}
-                className="-mr-2 flex min-h-11 items-center gap-1 rounded-full px-2 text-xs font-medium text-stone-400 transition active:scale-95 active:bg-stone-100"
+                onClick={onFreeze}
+                className="-mr-2 flex min-h-11 items-center gap-1 rounded-full px-2 text-xs font-medium text-sky-700/70 transition active:scale-95 active:bg-sky-50"
               >
-                <HeartHandshake size={14} />
-                Donate
+                <Snowflake size={14} />
+                Freeze
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </li>

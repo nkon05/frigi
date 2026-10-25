@@ -36,7 +36,7 @@ export default function RecipesScreen({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: picked.map((i) => ({ name: i.name, category: i.category, daysLeft: daysLeft(i) })),
+          items: picked.map((i) => ({ name: i.name, category: i.category, daysLeft: daysLeft(i), frozen: i.location === "freezer" })),
           restrictions,
         }),
       });

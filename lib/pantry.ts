@@ -14,15 +14,20 @@ export type Category = (typeof CATEGORIES)[number];
 // usda = USDA FoodKeeper match, ai = model estimate, manual = user edited the expiry date
 export type ShelfLifeSource = "usda" | "ai" | "manual";
 
+export type Location = "fridge" | "pantry" | "freezer";
+
 // Shape returned by /api/parse-receipt
 export type ParsedItem = {
   rawName: string;
   name: string;
   category: Category;
   price: number | null;
+  location: Location;
   shelfLifeDays: number;
   shelfLifeSource: ShelfLifeSource;
-  freezerShelfLifeDays: number | null; // from FoodKeeper when matched, for a future "freeze to extend"
+  freezerShelfLifeDays: number | null; // USDA FoodKeeper freezer days, when matched
+  freezable: boolean;
+  frozenShelfLifeDays: number | null; // AI's conservative freezer estimate (used when FoodKeeper has none)
   storageTip: string;
 };
 
@@ -31,15 +36,43 @@ export type PantryItem = ParsedItem & {
   purchaseDate: string; // YYYY-MM-DD
   expiryDate: string; // YYYY-MM-DD
   quantityPercent: number;
+  thawed?: boolean; // moved out of the freezer; short fixed expiry
 };
+
+// Safety net on top of the model's "freezable": foods that freeze badly or unsafely
+const DONT_FREEZE = /lettuce|salad|cucumber|radish|celery|sprouts|brie|camembert|ricotta|cottage cheese|cream cheese|mascarpone|feta|mayo|eggs?\b(?!.*(white|yolk))|egg\s*\d|watermelon/i;
+
+export function freezeDays(item: PantryItem): number | null {
+  return item.freezerShelfLifeDays ?? item.frozenShelfLifeDays ?? null;
+}
+
+export function canFreeze(item: PantryItem): boolean {
+  return item.location !== "freezer" && !item.thawed && item.freezable && freezeDays(item) != null && !DONT_FREEZE.test(item.name);
+}
+
+function defaultLocation(category: Category): Location {
+  if (category === "frozen") return "freezer";
+  if (category === "pantry" || category === "bakery") return "pantry";
+  return "fridge";
+}
 
 const STORAGE_KEY = "frigi.pantry";
 
 export function loadPantry(): PantryItem[] {
   try {
     const items: PantryItem[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    // Items saved before shelf-life sources existed were all AI estimates
-    return items.map((i) => ({ ...i, shelfLifeSource: i.shelfLifeSource ?? "ai", freezerShelfLifeDays: i.freezerShelfLifeDays ?? null }));
+    // Fill in fields that older saved items don't have
+    return items.map((i) => {
+      const freezerShelfLifeDays = i.freezerShelfLifeDays ?? null;
+      return {
+        ...i,
+        shelfLifeSource: i.shelfLifeSource ?? "ai", // before sources existed, everything was an AI estimate
+        freezerShelfLifeDays,
+        location: i.location ?? defaultLocation(i.category),
+        freezable: i.freezable ?? freezerShelfLifeDays != null, // only FoodKeeper freezer data says so
+        frozenShelfLifeDays: i.frozenShelfLifeDays ?? null,
+      };
+    });
   } catch {
     return [];
   }
@@ -96,4 +129,13 @@ export function toPantryItem(p: ParsedItem, purchaseDate = todayISO()): PantryIt
     expiryDate: addDays(purchaseDate, p.shelfLifeDays),
     quantityPercent: 100,
   };
+}
+
+// "3 days", "2 weeks", "3 months", "1 year" (rounded, for friendly messages)
+export function humanDays(n: number): string {
+  const plural = (v: number, unit: string) => `${v} ${unit}${v === 1 ? "" : "s"}`;
+  if (n < 14) return plural(n, "day");
+  if (n < 60) return plural(Math.round(n / 7), "week");
+  if (n < 365) return plural(Math.round(n / 30), "month");
+  return plural(Math.round(n / 365), "year");
 }

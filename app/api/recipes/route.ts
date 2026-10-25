@@ -24,7 +24,7 @@ const SCHEMA = {
 
 function buildPrompt(items: RecipeInputItem[], restrictions: RestrictionId[]) {
   const pantry = items
-    .map((i) => `- ${i.name} (${i.category}, expires ${i.daysLeft === 0 ? "today" : `in ${i.daysLeft} days`})`)
+    .map((i) => `- ${i.name} (${i.category}${i.frozen ? ", frozen" : ""}, expires ${i.daysLeft === 0 ? "today" : `in ${i.daysLeft} days`})`)
     .join("\n");
 
   const rules = restrictions.length
@@ -60,6 +60,7 @@ export async function POST(req: Request) {
         name: i.name.trim().slice(0, 100),
         category: (CATEGORIES as readonly string[]).includes(i.category) ? i.category : ("other" as Category),
         daysLeft: Math.max(0, Math.round(Number(i.daysLeft) || 0)),
+        frozen: i.frozen === true,
       }))
       // Safety net: drop items a restriction rules out by category, even if the client sent them
       .filter((i: RecipeInputItem) => allowedByCategory(i.category, restrictions))

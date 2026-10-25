@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Bell, Camera, ChevronLeft, ChevronRight, Leaf } from "lucide-react";
+import { AlertTriangle, Bell, Camera, ChevronLeft, ChevronRight, Leaf, Snowflake } from "lucide-react";
 import DonateSheet from "@/components/DonateSheet";
 import ImpactScreen from "@/components/ImpactScreen";
 import ItemCard from "@/components/ItemCard";
@@ -14,7 +14,19 @@ import { fileToResizedBase64 } from "@/lib/image";
 import { demoPantry } from "@/lib/demo";
 import { historyEntry, loadHistory, saveHistory, type HistoryEntry, type Outcome } from "@/lib/history";
 import { notificationPermission, notifyExpiring, requestNotifications } from "@/lib/notify";
-import { daysLeft, loadPantry, savePantry, toPantryItem, type PantryItem, type ParsedItem } from "@/lib/pantry";
+import {
+  addDays,
+  daysBetween,
+  daysLeft,
+  freezeDays,
+  humanDays,
+  loadPantry,
+  savePantry,
+  todayISO,
+  toPantryItem,
+  type PantryItem,
+  type ParsedItem,
+} from "@/lib/pantry";
 import { applyRecipeMade, type Recipe } from "@/lib/recipes";
 import { loadRestrictions, saveRestrictions, type RestrictionId } from "@/lib/restrictions";
 
@@ -24,6 +36,8 @@ const TITLES: Record<Tab, string> = {
   impact: "Your impact",
   settings: "Settings",
 };
+
+const THAWED_DAYS = 3;
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("pantry");
@@ -39,6 +53,7 @@ export default function Home() {
   const [removing, setRemoving] = useState<PantryItem | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [toast, setToast] = useState<{ text: string; key: number } | null>(null);
+  const [pantryView, setPantryView] = useState<"main" | "freezer">("main");
 
   useEffect(() => {
     setItems(loadPantry());
@@ -103,6 +118,43 @@ export default function Home() {
     else update(items.map((i) => (i.id === next.id ? next : i)));
   }
 
+  // Move to the freezer: new expiry = today + freezer shelf life; logged as "frozen" (not a removal)
+  function freezeItem(item: PantryItem) {
+    const days = freezeDays(item);
+    if (days == null) return;
+    const expiryDate = addDays(todayISO(), days);
+    const daysAdded = Math.max(0, daysBetween(item.expiryDate, expiryDate));
+    update(
+      items.map((i) =>
+        i.id === item.id
+          ? {
+              ...i,
+              location: "freezer",
+              expiryDate,
+              shelfLifeDays: daysBetween(i.purchaseDate, expiryDate),
+              shelfLifeSource: i.freezerShelfLifeDays != null ? "usda" : "ai",
+              thawed: false,
+            }
+          : i
+      )
+    );
+    addHistory([historyEntry(item, "frozen", { daysAdded })]);
+    setToast({ text: `Frozen! Added ~${humanDays(daysAdded)} to the ${item.name} ❄️`, key: Date.now() });
+  }
+
+  // Thawed food spoils faster: back to the fridge with a short, fixed expiry
+  function thawItem(item: PantryItem) {
+    const expiryDate = addDays(todayISO(), THAWED_DAYS);
+    update(
+      items.map((i) =>
+        i.id === item.id
+          ? { ...i, location: "fridge", expiryDate, shelfLifeDays: daysBetween(i.purchaseDate, expiryDate), thawed: true }
+          : i
+      )
+    );
+    setToast({ text: `${item.name} thawed. Use within ${THAWED_DAYS} days`, key: Date.now() });
+  }
+
   function resetStats() {
     setHistory([]);
     saveHistory([]);
@@ -164,7 +216,11 @@ export default function Home() {
         return;
       }
       update([...items, ...parsed.map((p) => toPantryItem(p))]);
-      setNotice(`Added ${parsed.length} item${parsed.length === 1 ? "" : "s"} 🎉`);
+      const toFreezer = parsed.filter((p) => p.location === "freezer").length;
+      setNotice(
+        `Added ${parsed.length} item${parsed.length === 1 ? "" : "s"} 🎉` +
+          (toFreezer ? ` (${toFreezer} in the freezer)` : "")
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -173,6 +229,9 @@ export default function Home() {
   }
 
   const sorted = [...items].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+  const freezerItems = sorted.filter((i) => i.location === "freezer");
+  const mainItems = sorted.filter((i) => i.location !== "freezer");
+  const visible = pantryView === "freezer" ? freezerItems : mainItems;
 
   const showDiet = tab === "recipes" && dietOpen;
 
@@ -245,14 +304,36 @@ export default function Home() {
                   </div>
                 </>
               ) : (
+                <>
+                <Segmented
+                  value={pantryView}
+                  onChange={setPantryView}
+                  options={[
+                    { value: "main", label: "Fridge & Pantry", count: mainItems.length },
+                    { value: "freezer", label: "Freezer", count: freezerItems.length },
+                  ]}
+                />
+                {visible.length === 0 && (
+                  <EmptyState
+                    icon={pantryView === "freezer" ? Snowflake : Camera}
+                    title={pantryView === "freezer" ? "Nothing in the freezer" : "Fridge & pantry are empty"}
+                    body={
+                      pantryView === "freezer"
+                        ? "Tap Freeze on an item that's about to expire to keep it for months."
+                        : "Scan a receipt to add more food."
+                    }
+                  />
+                )}
                 <ul className="space-y-3">
-                  {sorted.map((item) => (
+                  {visible.map((item) => (
                     <ItemCard
                       key={item.id}
                       item={item}
                       onChange={changeItem}
                       onDelete={() => setRemoving(item)}
                       onDonate={() => setDonating(item)}
+                      onFreeze={() => freezeItem(item)}
+                      onThaw={() => thawItem(item)}
                     />
                   ))}
                   {items.length > 0 && (
@@ -263,6 +344,7 @@ export default function Home() {
                     </li>
                   )}
                 </ul>
+                </>
               )}
           </div>
 
@@ -376,6 +458,39 @@ function ExpiringBanner({
           <Bell size={14} /> Remind me with notifications
         </button>
       )}
+    </div>
+  );
+}
+
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string; count: number }[];
+}) {
+  return (
+    <div role="tablist" className="mb-3 flex rounded-2xl bg-stone-200/60 p-1">
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <button
+            key={o.value}
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(o.value)}
+            className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition active:scale-[0.98] ${
+              on ? (o.value === "freezer" ? "bg-white text-sky-700 shadow-sm" : "bg-white text-green-800 shadow-sm") : "text-stone-500"
+            }`}
+          >
+            {o.value === "freezer" && <Snowflake size={14} />}
+            {o.label}
+            <span className={`rounded-full px-1.5 text-xs tabular-nums ${on ? "bg-stone-100" : "bg-stone-200/80"}`}>{o.count}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
