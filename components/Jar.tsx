@@ -41,7 +41,7 @@ export default function Jar({ item, onOpen }: { item: PantryItem; onOpen: () => 
     >
       <JarFrame lid={LID[level]}>
         <CategoryIcon category={item.category} name={item.name} />
-        <span className="mb-[5px] mt-1.5 line-clamp-2 block h-[30px] hyphens-auto break-words font-display text-[13px] font-bold leading-[1.15] text-ink">{item.name}</span>
+        <span className="mb-[5px] mt-1.5 line-clamp-2 h-[30px] hyphens-auto break-words font-display text-[13px] font-bold leading-[1.15] text-ink">{item.name}</span>
         <span className="flex flex-wrap items-center gap-1">
           <span className={`pill px-1.5 py-0.5 ${URGENCY_PILL[level]}`}>{shortExpiryLabel(d)}</span>
           {item.thawed ? (

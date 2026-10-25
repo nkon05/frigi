@@ -142,6 +142,17 @@
   }
 }
 
+/* Respect "reduce motion": no slides, fades or spins */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Visible keyboard focus everywhere (also for visually hidden checkboxes inside labels) */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible,
 label:has(input:focus-visible) {
@@ -214,7 +225,7 @@ textarea {
   }
 }
 .animate-sheet-up {
-  animation: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: sheet-up 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 @keyframes fade-in {

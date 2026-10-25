@@ -412,9 +412,10 @@ export default function Home() {
                       : "Nothing in the fridge or pantry. Scan a receipt to stock them."
                 }
                 onLoadDemo={items.length === 0 ? loadDemo : undefined}
+                frozen={items.length > 0 && pantryView === "freezer"}
               />
             ) : (
-              <Shelves items={visible} onOpen={(item) => setOpenItemId(item.id)} />
+              <Shelves items={visible} frozen={pantryView === "freezer"} onOpen={(item) => setOpenItemId(item.id)} />
             )}
 
             {items.length > 0 && (
@@ -564,11 +565,11 @@ function ScanningState() {
   );
 }
 
-function EmptyShelf({ text, onLoadDemo }: { text: string; onLoadDemo?: () => void }) {
+function EmptyShelf({ text, onLoadDemo, frozen }: { text: string; onLoadDemo?: () => void; frozen?: boolean }) {
   return (
     <div className="pt-6">
       <p className="mx-auto mb-3 max-w-[280px] px-4 text-center font-display text-lg leading-snug text-ink">{text}</p>
-      <Plank />
+      <Plank frozen={frozen} />
       {onLoadDemo && (
         <div className="flex justify-center">
           <button onClick={onLoadDemo} className="min-h-11 rounded-full px-4 text-sm font-bold text-olive-text transition active:scale-95">
