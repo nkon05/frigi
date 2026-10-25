@@ -1,8 +1,7 @@
 "use client";
 
 import { Car, Cloud, Flame, HeartHandshake, PiggyBank, RotateCcw, Snowflake, Sprout, Trash, Utensils, type LucideIcon } from "lucide-react";
-import { CATEGORY_EMOJI } from "@/components/ItemCard";
-import { CARD, EmptyState } from "@/components/ui";
+import { CARD, CATEGORY_EMOJI, EmptyState } from "@/components/ui";
 import { computeStats, type HistoryEntry } from "@/lib/history";
 
 const money = (n: number) => `$${n.toFixed(2)}`;

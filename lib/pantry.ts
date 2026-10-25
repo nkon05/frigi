@@ -139,3 +139,38 @@ export function humanDays(n: number): string {
   if (n < 365) return plural(Math.round(n / 30), "month");
   return plural(Math.round(n / 365), "year");
 }
+
+// ---- Shared display helpers (urgency thresholds, expiry labels, ordering) ----
+
+export type Urgency = "red" | "yellow" | "green";
+
+// red = expired or within 2 days, yellow = within 5 days, green = later
+export function urgency(item: PantryItem): Urgency {
+  const d = daysLeft(item);
+  if (d <= 2) return "red";
+  if (d <= 5) return "yellow";
+  return "green";
+}
+
+// Soonest expiry first
+export function sortByExpiry(items: PantryItem[]): PantryItem[] {
+  return [...items].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+}
+
+// Compact tile label: "Expired", "Today", "Tomorrow", "4 days", "3 weeks", "5 months"
+export function shortExpiryLabel(d: number): string {
+  if (d < 0) return "Expired";
+  if (d === 0) return "Today";
+  if (d === 1) return "Tomorrow";
+  if (d < 14) return `${d} days`;
+  if (d < 60) return `${Math.round(d / 7)} weeks`;
+  return `${Math.round(d / 30)} months`;
+}
+
+// Full label: "Expired 2 days ago", "Expires today", "Expires tomorrow", "Expires in 4 days"
+export function expiryLabel(d: number): string {
+  if (d < 0) return `Expired ${-d} day${d === -1 ? "" : "s"} ago`;
+  if (d === 0) return "Expires today";
+  if (d === 1) return "Expires tomorrow";
+  return `Expires in ${d} days`;
+}

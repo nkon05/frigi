@@ -1,28 +1,16 @@
 "use client";
 
-import { Camera, ChefHat, Refrigerator, Settings, Sprout } from "lucide-react";
-
 export type Tab = "pantry" | "recipes" | "impact" | "settings";
 
-function TabButton({
-  active,
-  label,
-  icon: Icon,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  icon: typeof Camera;
-  onClick: () => void;
-}) {
+function TabButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition active:scale-95 ${
-        active ? "text-green-700" : "text-stone-400"
+      aria-current={active ? "page" : undefined}
+      className={`flex min-h-[52px] flex-1 items-center justify-center text-xs font-extrabold transition active:scale-95 ${
+        active ? "text-olive-text" : "text-muted"
       }`}
     >
-      <Icon size={22} strokeWidth={active ? 2.4 : 2} />
       {label}
     </button>
   );
@@ -40,23 +28,22 @@ export default function TabBar({
   onScan: (file: File) => void;
 }) {
   return (
-    <nav className="pb-safe absolute inset-x-0 bottom-0 z-20 border-t border-stone-200/70 bg-white/90 px-2 backdrop-blur-lg">
-      <div className="flex items-end">
+    <nav className="pb-safe absolute inset-x-0 bottom-0 z-20 border-t-2 border-sand bg-paper px-2">
+      <div className="flex h-[74px] items-center">
         <div className="flex flex-1">
-          <TabButton active={tab === "pantry"} label="Pantry" icon={Refrigerator} onClick={() => onTab("pantry")} />
-          <TabButton active={tab === "recipes"} label="Recipes" icon={ChefHat} onClick={() => onTab("recipes")} />
+          <TabButton active={tab === "pantry"} label="Pantry" onClick={() => onTab("pantry")} />
+          <TabButton active={tab === "recipes"} label="Recipes" onClick={() => onTab("recipes")} />
         </div>
 
         {/* Center Scan button opens the camera directly */}
         <div className="flex w-20 justify-center">
           <label
-            className={`-mt-6 flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-full bg-green-600 text-white shadow-lg shadow-green-600/30 ring-4 ring-cream transition active:scale-95 ${
+            className={`-mt-[52px] flex h-[60px] w-[60px] cursor-pointer items-center justify-center rounded-full bg-olive text-sm font-extrabold text-white shadow-[0_4px_0_#3F4D22] transition active:translate-y-0.5 active:shadow-[0_2px_0_#3F4D22] ${
               scanning ? "pointer-events-none opacity-70" : ""
             }`}
             aria-label="Scan a receipt"
           >
-            <Camera size={26} strokeWidth={2.2} />
-            <span className="text-[10px] font-semibold">Scan</span>
+            Scan
             <input
               type="file"
               accept="image/*"
@@ -73,8 +60,8 @@ export default function TabBar({
         </div>
 
         <div className="flex flex-1">
-          <TabButton active={tab === "impact"} label="Impact" icon={Sprout} onClick={() => onTab("impact")} />
-          <TabButton active={tab === "settings"} label="Settings" icon={Settings} onClick={() => onTab("settings")} />
+          <TabButton active={tab === "impact"} label="Impact" onClick={() => onTab("impact")} />
+          <TabButton active={tab === "settings"} label="Settings" onClick={() => onTab("settings")} />
         </div>
       </div>
     </nav>

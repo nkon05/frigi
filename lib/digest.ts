@@ -9,7 +9,8 @@ export type Digest = {
   tomorrow: number;
   soon: number; // everything expired or within the window
   top: { name: string; label: string }[]; // 3 soonest
-  text: string;
+  text: string; // notification text
+  urgent: { id: string; name: string; days: number }[]; // all items needing attention, soonest first
 };
 
 function whenLabel(d: number): string {
@@ -37,7 +38,35 @@ export function computeDigest(items: PantryItem[]): Digest {
     soon: n,
     top,
     text,
+    urgent: urgent.map((i) => ({ id: i.id, name: i.name, days: daysLeft(i) })),
   };
+}
+
+const joinNames = (names: string[]) =>
+  names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+
+function verb(days: number, plural: boolean): string {
+  if (days < 0) return "expired";
+  const v = plural ? "expire" : "expires";
+  if (days === 0) return `${v} today`;
+  if (days === 1) return `${v} tomorrow`;
+  return `${v} in ${days} days`;
+}
+
+// Card line, e.g. "Chicken Breast and Ground Beef expire tomorrow" or
+// "Baby Spinach expired, Blueberries expires tomorrow +2 more". At most 3 names.
+export function digestHeadline(d: Digest): string {
+  const shown = d.urgent.slice(0, 3);
+  const groups: { days: number; names: string[] }[] = [];
+  for (const u of shown) {
+    const key = u.days < 0 ? -1 : u.days; // all expired items share one group
+    const last = groups.at(-1);
+    if (last && last.days === key) last.names.push(u.name);
+    else groups.push({ days: key, names: [u.name] });
+  }
+  const line = groups.map((g) => `${joinNames(g.names)} ${verb(g.days, g.names.length > 1)}`).join(", ");
+  const more = d.urgent.length - shown.length;
+  return more > 0 ? `${line} +${more} more` : line;
 }
 
 // ---- Settings & per-day state (localStorage) ------------------------------

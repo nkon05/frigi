@@ -1,14 +1,37 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-fraunces);
   --color-cream: #faf7f0;
+
+  /* Kitchen palette */
+  --color-wall: #f1e8d8;
+  --color-paper: #fffdf7;
+  --color-sheet: #fbf4e6;
+  --color-ink: #3b2a1c;
+  --color-muted: #6b5640;
+  --color-heading: #202a0a;
+  --color-olive: #5e6f34;
+  --color-olive-dark: #3f4d22;
+  --color-olive-text: #4f5f25;
+  --color-terra: #8a2f12;
+  --color-sand: #d8c5a0;
+  --color-wood: #b07a4f;
+  --color-wood-dark: #8a5a36;
+  --color-freeze: #4f7387;
+}
+
+/* Faint wallpaper stripes behind the app */
+.wallpaper {
+  background-color: var(--color-wall);
+  background-image: repeating-linear-gradient(90deg, rgba(120, 80, 40, 0.06) 0 2px, transparent 2px 24px);
 }
 
 html,
 body {
-  background: #efeae0;
-  color: #1c1917;
+  background: #e6dac4;
+  color: #3b2a1c;
   overscroll-behavior: none; /* no rubber-band / pull-to-refresh on the shell */
   -webkit-tap-highlight-color: transparent;
 }

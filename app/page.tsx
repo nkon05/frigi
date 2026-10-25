@@ -1,17 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Bell, Camera, ChevronLeft, ChevronRight, Leaf, Snowflake } from "lucide-react";
+import { AlertTriangle, Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import DigestCard from "@/components/DigestCard";
 import DigestSettings from "@/components/DigestSettings";
 import DonateSheet from "@/components/DonateSheet";
 import ImpactScreen from "@/components/ImpactScreen";
-import ItemCard from "@/components/ItemCard";
+import ItemSheet from "@/components/ItemSheet";
 import RecipesScreen from "@/components/RecipesScreen";
 import RemoveSheet from "@/components/RemoveSheet";
+import Shelves, { Plank } from "@/components/Shelf";
 import SettingsScreen from "@/components/SettingsScreen";
 import TabBar, { type Tab } from "@/components/TabBar";
-import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
+import { Banner, LoadingCard } from "@/components/ui";
 import { fileToResizedBase64 } from "@/lib/image";
 import { demoHistory, demoPantry } from "@/lib/demo";
 import { historyEntry, loadHistory, saveHistory, type HistoryEntry, type Outcome } from "@/lib/history";
@@ -36,6 +37,7 @@ import {
   humanDays,
   loadPantry,
   savePantry,
+  sortByExpiry,
   todayISO,
   toPantryItem,
   type PantryItem,
@@ -45,7 +47,7 @@ import { applyRecipeMade, type Recipe } from "@/lib/recipes";
 import { loadRestrictions, saveRestrictions, type RestrictionId } from "@/lib/restrictions";
 
 const TITLES: Record<Tab, string> = {
-  pantry: "Your pantry",
+  pantry: "your kitchen",
   recipes: "Recipes",
   impact: "Your impact",
   settings: "Settings",
@@ -72,7 +74,9 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [toast, setToast] = useState<{ text: string; key: number } | null>(null);
   const [pantryView, setPantryView] = useState<"main" | "freezer">("main");
-  const [recipesFocus, setRecipesFocus] = useState(0); // bump to reset the recipe picker to expiring items
+  // A new key resets the recipe picker to these ids (null = items expiring soon)
+  const [recipesFocus, setRecipesFocus] = useState<{ key: number; ids: string[] | null }>({ key: 0, ids: null });
+  const [openItemId, setOpenItemId] = useState<string | null>(null); // item sheet
 
   useEffect(() => {
     setItems(loadPantry());
@@ -133,9 +137,9 @@ export default function Home() {
     };
   }, [loaded, maybeSendDigest, digestSettings.time]);
 
-  // Recipes tab with the expiring items pre-selected
-  function seeRecipes() {
-    setRecipesFocus((k) => k + 1);
+  // Recipes tab with these items pre-selected (null = the default: items expiring soon)
+  function seeRecipes(ids: string[] | null = null) {
+    setRecipesFocus((f) => ({ key: f.key + 1, ids }));
     goTab("recipes");
   }
 
@@ -318,17 +322,18 @@ export default function Home() {
     }
   }
 
-  const sorted = [...items].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+  const sorted = sortByExpiry(items);
   const freezerItems = sorted.filter((i) => i.location === "freezer");
   const mainItems = sorted.filter((i) => i.location !== "freezer");
   const visible = pantryView === "freezer" ? freezerItems : mainItems;
+  const openItem = openItemId ? items.find((i) => i.id === openItemId) : undefined;
 
   const showDiet = tab === "recipes" && dietOpen;
 
   return (
-    <div className="mx-auto flex h-dvh max-w-[480px] flex-col bg-cream sm:shadow-2xl">
+    <div className="wallpaper mx-auto flex h-dvh max-w-[480px] flex-col sm:shadow-2xl">
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <header className="pt-safe z-10 bg-cream/90 px-5 pb-3 backdrop-blur-lg">
+        <header className="pt-safe z-10 px-5 pb-3">
           {showDiet ? (
             <button
               onClick={() => setDietOpen(false)}
@@ -338,17 +343,16 @@ export default function Home() {
               Back
             </button>
           ) : (
-            <div className="flex items-center gap-1.5 text-green-700">
-              <Leaf size={16} strokeWidth={2.5} />
-              <span className="text-sm font-bold tracking-tight">FreshTrack</span>
-            </div>
+            <p className="text-[13px] font-extrabold text-olive">frigi.</p>
           )}
           <div className="mt-1 flex items-baseline justify-between">
-            <h1 className="text-2xl font-bold tracking-tight text-stone-900">
+            <h1 className="font-display text-[30px] font-normal leading-tight text-heading">
               {showDiet ? "Allergies & diet" : TITLES[tab]}
             </h1>
             {tab === "pantry" && items.length > 0 && (
-              <span className="text-sm text-stone-400">{items.length} items</span>
+              <span className="text-[11px] font-bold text-muted">
+                {items.length} item{items.length === 1 ? "" : "s"}
+              </span>
             )}
           </div>
           {/* On Pantry, the digest card covers this */}
@@ -356,7 +360,7 @@ export default function Home() {
             <ExpiringBanner
               names={expiringNames}
               canEnableNotifications={!digestSettings.enabled && notifStatus !== "unsupported" && notifStatus !== "denied"}
-              onOpen={seeRecipes}
+              onOpen={() => seeRecipes()}
               onEnableNotifications={async () => {
                 await toggleDigest(true);
                 setToast({ text: "Daily digest is on. Change the time in Settings.", key: Date.now() });
@@ -365,11 +369,12 @@ export default function Home() {
           )}
         </header>
 
-        <main className="flex-1 overflow-y-auto overscroll-contain px-4 pb-32 pt-2">
+        <main className="flex-1 overflow-y-auto overscroll-contain pb-32 pt-2">
           {/* All screens stay mounted (just hidden) so in-progress state survives tab switches */}
           <div className={tab === "pantry" ? "animate-fade-up" : "hidden"}>
-              {loading && <ScanningState />}
+            {loading && <ScanningState />}
 
+            <div className="px-4">
               {error && (
                 <Banner tone="error" onClose={() => setError(null)}>
                   {error}
@@ -380,100 +385,76 @@ export default function Home() {
                   {notice}
                 </Banner>
               )}
+            </div>
 
-              {loaded && items.length === 0 && !loading ? (
-                <>
-                  <EmptyState
-                    icon={Camera}
-                    title="Scan a receipt to get started"
-                    body="Tap the green Scan button and snap your grocery receipt. We'll list your food and when it goes bad."
-                  />
-                  <div className="mt-4 flex justify-center">
-                    <button
-                      onClick={loadDemo}
-                      className="min-h-11 rounded-full px-4 text-sm font-medium text-green-700 transition active:scale-95 active:bg-green-50"
-                    >
-                      or load demo data
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                {!digestDismissed && (
-                  <DigestCard
-                    digest={digest}
-                    onSeeRecipes={seeRecipes}
-                    onDismiss={() => {
-                      dismissToday();
-                      setDigestDismissed(true);
-                    }}
-                  />
-                )}
-                <Segmented
-                  value={pantryView}
-                  onChange={setPantryView}
-                  options={[
-                    { value: "main", label: "Fridge & Pantry", count: mainItems.length },
-                    { value: "freezer", label: "Freezer", count: freezerItems.length },
-                  ]}
-                />
-                {visible.length === 0 && (
-                  <EmptyState
-                    icon={pantryView === "freezer" ? Snowflake : Camera}
-                    title={pantryView === "freezer" ? "Nothing in the freezer" : "Fridge & pantry are empty"}
-                    body={
-                      pantryView === "freezer"
-                        ? "Tap Freeze on an item that's about to expire to keep it for months."
-                        : "Scan a receipt to add more food."
-                    }
-                  />
-                )}
-                <ul className="space-y-3">
-                  {visible.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      onChange={changeItem}
-                      onDelete={() => setRemoving(item)}
-                      onDonate={() => setDonating(item)}
-                      onFreeze={() => freezeItem(item)}
-                      onThaw={() => thawItem(item)}
-                    />
-                  ))}
-                  {items.length > 0 && (
-                    <li className="px-2 pt-2 text-center text-xs text-stone-400">
-                      🛒 Reorder opens Google Shopping. Real store integration is planned.
-                      <br />
-                      Shelf life from USDA FoodKeeper where available, otherwise AI-estimated.
-                    </li>
-                  )}
-                </ul>
-                </>
-              )}
+            {loaded && items.length > 0 && !digestDismissed && (
+              <DigestCard
+                digest={digest}
+                onSeeRecipes={() => seeRecipes(digest.urgent.map((u) => u.id))}
+                onDismiss={() => {
+                  dismissToday();
+                  setDigestDismissed(true);
+                }}
+              />
+            )}
+
+            {loaded && items.length > 0 && (
+              <Segmented
+                value={pantryView}
+                onChange={setPantryView}
+                options={[
+                  { value: "main", label: "Fridge & Pantry", count: mainItems.length },
+                  { value: "freezer", label: "Freezer", count: freezerItems.length },
+                ]}
+              />
+            )}
+
+            {loaded && !loading && visible.length === 0 ? (
+              <EmptyShelf
+                text={
+                  items.length === 0
+                    ? "Your shelves are empty. Scan a receipt to stock them."
+                    : pantryView === "freezer"
+                      ? "Nothing in the freezer yet. Freeze food that's about to expire to keep it for months."
+                      : "Nothing in the fridge or pantry. Scan a receipt to stock them."
+                }
+                onLoadDemo={items.length === 0 ? loadDemo : undefined}
+              />
+            ) : (
+              <Shelves items={visible} onOpen={(item) => setOpenItemId(item.id)} />
+            )}
+
+            {items.length > 0 && (
+              <p className="px-6 pt-2 text-center text-xs text-muted/80">
+                Reorder opens Google Shopping. Real store integration is planned.
+                <br />
+                Shelf life from USDA FoodKeeper where available, otherwise AI-estimated.
+              </p>
+            )}
           </div>
 
           {/* RecipesScreen stays mounted while the diet sub-screen is open, so recipes aren't lost */}
-          <div className={tab === "recipes" && !dietOpen ? "animate-fade-up" : "hidden"}>
+          <div className={tab === "recipes" && !dietOpen ? "animate-fade-up px-4" : "hidden"}>
             <RecipesScreen
               items={items}
               restrictions={restrictions}
               onMade={handleMade}
               onEditSettings={() => setDietOpen(true)}
-              focusKey={recipesFocus}
+              focus={recipesFocus}
             />
           </div>
 
           {showDiet && (
-            <div className="animate-fade-up">
+            <div className="animate-fade-up px-4">
               <SettingsScreen restrictions={restrictions} onChange={updateRestrictions} />
             </div>
           )}
 
-          <div className={tab === "impact" ? "animate-fade-up" : "hidden"}>
+          <div className={tab === "impact" ? "animate-fade-up px-4" : "hidden"}>
             <ImpactScreen history={history} onReset={resetStats} />
           </div>
 
-          <div className={tab === "settings" ? "animate-fade-up" : "hidden"}>
+          <div className={tab === "settings" ? "animate-fade-up px-4" : "hidden"}>
             <SettingsScreen
               restrictions={restrictions}
               onChange={updateRestrictions}
@@ -507,6 +488,34 @@ export default function Home() {
           </div>
         )}
 
+        {openItem && (
+          <ItemSheet
+            item={openItem}
+            onClose={() => setOpenItemId(null)}
+            onChange={changeItem}
+            onFreeze={() => {
+              setOpenItemId(null);
+              freezeItem(openItem);
+            }}
+            onThaw={() => {
+              setOpenItemId(null);
+              thawItem(openItem);
+            }}
+            onDonate={() => {
+              setOpenItemId(null);
+              setDonating(openItem);
+            }}
+            onRemove={() => {
+              setOpenItemId(null);
+              setRemoving(openItem);
+            }}
+            onSeeRecipes={() => {
+              setOpenItemId(null);
+              seeRecipes([openItem.id]);
+            }}
+          />
+        )}
+
         {removing && (
           <RemoveSheet
             item={removing}
@@ -529,18 +538,36 @@ export default function Home() {
 
 function ScanningState() {
   return (
-    <div className="mb-4 space-y-3">
-      <LoadingCard title="Reading your receipt..." subtitle="Finding food items and expiry dates" />
-      {[0, 1, 2].map((i) => (
-        <div key={i} className={`${CARD} flex animate-pulse gap-3 p-4`}>
-          <div className="h-12 w-12 rounded-xl bg-stone-100" />
-          <div className="flex-1 space-y-2 py-1">
-            <div className="h-4 w-2/3 rounded bg-stone-100" />
-            <div className="h-3 w-1/3 rounded bg-stone-100" />
-            <div className="h-6 w-1/2 rounded-full bg-stone-100" />
+    <div className="mb-4">
+      <div className="mb-4 px-4">
+        <LoadingCard title="Reading your receipt..." subtitle="Finding food items and expiry dates" />
+      </div>
+      <div className="grid grid-cols-3 gap-2 px-4">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-[112px] animate-pulse rounded-[12px_12px_4px_4px] bg-paper/80 p-2">
+            <div className="h-5 w-5 rounded-full bg-sand/60" />
+            <div className="mt-2 h-3 w-3/4 rounded bg-sand/60" />
+            <div className="mt-3 h-4 w-1/2 rounded-full bg-sand/60" />
           </div>
+        ))}
+      </div>
+      <Plank />
+    </div>
+  );
+}
+
+function EmptyShelf({ text, onLoadDemo }: { text: string; onLoadDemo?: () => void }) {
+  return (
+    <div className="pt-6">
+      <p className="mx-auto mb-3 max-w-[280px] px-4 text-center font-display text-lg leading-snug text-ink">{text}</p>
+      <Plank />
+      {onLoadDemo && (
+        <div className="flex justify-center">
+          <button onClick={onLoadDemo} className="min-h-11 rounded-full px-4 text-sm font-bold text-olive-text transition active:scale-95">
+            or load demo data
+          </button>
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -592,7 +619,7 @@ function Segmented<T extends string>({
   options: { value: T; label: string; count: number }[];
 }) {
   return (
-    <div role="tablist" className="mb-3 flex rounded-2xl bg-stone-200/60 p-1">
+    <div role="tablist" className="mx-4 mb-4 flex rounded-full bg-sand p-1">
       {options.map((o) => {
         const on = o.value === value;
         return (
@@ -601,13 +628,9 @@ function Segmented<T extends string>({
             role="tab"
             aria-selected={on}
             onClick={() => onChange(o.value)}
-            className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition active:scale-[0.98] ${
-              on ? (o.value === "freezer" ? "bg-white text-sky-700 shadow-sm" : "bg-white text-green-800 shadow-sm") : "text-stone-500"
-            }`}
+            className={`min-h-11 flex-1 rounded-full text-[13px] font-extrabold text-ink transition active:scale-[0.98] ${on ? "bg-paper shadow-sm" : ""}`}
           >
-            {o.value === "freezer" && <Snowflake size={14} />}
-            {o.label}
-            <span className={`rounded-full px-1.5 text-xs tabular-nums ${on ? "bg-stone-100" : "bg-stone-200/80"}`}>{o.count}</span>
+            {o.label} ({o.count})
           </button>
         );
       })}

@@ -1,8 +1,52 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { X } from "lucide-react";
 
-// Bottom sheet that covers the app shell (render inside the relative app container)
+const SWIPE_CLOSE_PX = 80;
+
+// Bottom sheet frame: dim overlay + panel with drag handle. Tap the overlay or swipe down to close.
+// Render inside the relative app container.
+export function SheetFrame({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const startY = useRef<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+
+  // Swipe down: only starts when the panel is scrolled to the top
+  const onTouchStart = (e: React.TouchEvent) => {
+    startY.current = (panel.current?.scrollTop ?? 0) <= 0 ? e.touches[0].clientY : null;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (startY.current == null) return;
+    setDragY(Math.max(0, e.touches[0].clientY - startY.current));
+  };
+  const onTouchEnd = () => {
+    if (dragY > SWIPE_CLOSE_PX) onClose();
+    startY.current = null;
+    setDragY(0);
+  };
+
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={label}>
+      <button aria-label="Close" onClick={onClose} className="animate-fade-in absolute inset-0 bg-[rgba(40,25,12,.55)]" />
+      <div
+        ref={panel}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
+        className={`animate-sheet-up pb-safe relative max-h-[75vh] overflow-y-auto overscroll-contain rounded-t-[26px] bg-sheet px-5 pt-3 shadow-2xl ${
+          dragY ? "" : "transition-transform duration-200"
+        }`}
+      >
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-sand" />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Sheet with a title row and close button
 export default function Sheet({
   title,
   subtitle,
@@ -15,26 +59,21 @@ export default function Sheet({
   children: React.ReactNode;
 }) {
   return (
-    <div className="absolute inset-0 z-30 flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={title}>
-      <button aria-label="Close" onClick={onClose} className="animate-fade-in absolute inset-0 bg-stone-900/40" />
-
-      <div className="animate-sheet-up pb-safe relative rounded-t-3xl bg-cream px-5 pt-3 shadow-2xl">
-        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-stone-300" />
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-stone-900">{title}</h2>
-            {subtitle && <p className="mt-1 text-sm text-stone-600">{subtitle}</p>}
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-stone-400 transition active:scale-95 active:bg-stone-100"
-          >
-            <X size={20} />
-          </button>
+    <SheetFrame label={title} onClose={onClose}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-bold tracking-tight text-ink">{title}</h2>
+          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </div>
-        {children}
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="-mr-2 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition active:scale-95 active:bg-black/5"
+        >
+          <X size={20} />
+        </button>
       </div>
-    </div>
+      {children}
+    </SheetFrame>
   );
 }

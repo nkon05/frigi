@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Award, Check, ChefHat, ChevronDown, Clock, Search, ShoppingBasket, Snowflake, Sparkles } from "lucide-react";
-import { urgency } from "@/components/ItemCard";
 import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
-import { type PantryItem } from "@/lib/pantry";
+import { urgency, type PantryItem } from "@/lib/pantry";
 import { defaultSelection, rankRecipes, toRecipeInput, type RankedRecipe, type Recipe } from "@/lib/recipes";
 import { allowedByCategory, RESTRICTIONS, type RestrictionId } from "@/lib/restrictions";
 
@@ -16,13 +15,13 @@ export default function RecipesScreen({
   restrictions,
   onMade,
   onEditSettings,
-  focusKey,
+  focus,
 }: {
   items: PantryItem[];
   restrictions: RestrictionId[];
   onMade: (recipe: Recipe) => string[]; // returns names of pantry items that were reduced
   onEditSettings: () => void;
-  focusKey: number; // changes when "See recipes" is tapped: reset the picker to the expiring items
+  focus: { key: number; ids: string[] | null }; // a new key resets the picker to these ids (null = expiring items)
 }) {
   const [search, setSearch] = useState("");
   const [chosen, setChosen] = useState<string[] | null>(null); // null = default (expiring within 3 days)
@@ -32,7 +31,8 @@ export default function RecipesScreen({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => setChosen(null), [focusKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to a new focus request
+  useEffect(() => setChosen(focus.ids), [focus.key]);
 
   const sorted = [...items].filter((i) => i.quantityPercent > 0).sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
   const allowed = (i: PantryItem) => allowedByCategory(i.category, restrictions);

@@ -1,5 +1,17 @@
 import type { LucideIcon } from "lucide-react";
 
+// Emoji per category (Impact screen)
+export const CATEGORY_EMOJI: Record<string, string> = {
+  produce: "🥬",
+  dairy: "🥛",
+  meat: "🥩",
+  seafood: "🐟",
+  bakery: "🍞",
+  pantry: "🥫",
+  frozen: "🧊",
+  other: "🛒",
+};
+
 export const CARD = "rounded-2xl bg-white shadow-[0_2px_12px_rgba(28,25,23,0.06)]";
 
 export function Banner({
