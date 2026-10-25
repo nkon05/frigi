@@ -3,21 +3,25 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Bell, Camera, ChevronLeft, ChevronRight, Leaf } from "lucide-react";
 import DonateSheet from "@/components/DonateSheet";
+import ImpactScreen from "@/components/ImpactScreen";
 import ItemCard from "@/components/ItemCard";
 import RecipesScreen from "@/components/RecipesScreen";
+import RemoveSheet from "@/components/RemoveSheet";
 import SettingsScreen from "@/components/SettingsScreen";
 import TabBar, { type Tab } from "@/components/TabBar";
 import { Banner, CARD, EmptyState, LoadingCard } from "@/components/ui";
 import { fileToResizedBase64 } from "@/lib/image";
 import { demoPantry } from "@/lib/demo";
+import { historyEntry, loadHistory, saveHistory, type HistoryEntry, type Outcome } from "@/lib/history";
 import { notificationPermission, notifyExpiring, requestNotifications } from "@/lib/notify";
-import { daysLeft, incrementDonatedCount, loadPantry, savePantry, toPantryItem, type PantryItem, type ParsedItem } from "@/lib/pantry";
+import { daysLeft, loadPantry, savePantry, toPantryItem, type PantryItem, type ParsedItem } from "@/lib/pantry";
 import { applyRecipeMade, type Recipe } from "@/lib/recipes";
 import { loadRestrictions, saveRestrictions, type RestrictionId } from "@/lib/restrictions";
 
 const TITLES: Record<Tab, string> = {
   pantry: "Your pantry",
   recipes: "Recipes",
+  impact: "Your impact",
   settings: "Settings",
 };
 
@@ -32,9 +36,13 @@ export default function Home() {
   const [restrictions, setRestrictions] = useState<RestrictionId[]>([]);
   const [notifPerm, setNotifPerm] = useState<string>("unsupported");
   const [donating, setDonating] = useState<PantryItem | null>(null);
+  const [removing, setRemoving] = useState<PantryItem | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [toast, setToast] = useState<{ text: string; key: number } | null>(null);
 
   useEffect(() => {
     setItems(loadPantry());
+    setHistory(loadHistory());
     setRestrictions(loadRestrictions());
     setNotifPerm(notificationPermission());
     setLoaded(true);
@@ -57,12 +65,47 @@ export default function Home() {
     if (perm === "granted") notifyExpiring(expiringNames, { force: true });
   }
 
-  function markDonated(item: PantryItem) {
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  function addHistory(entries: HistoryEntry[]) {
+    setHistory((h) => {
+      const next = [...h, ...entries];
+      saveHistory(next);
+      return next;
+    });
+  }
+
+  // The one place items leave the pantry with an outcome (removal sheet, donate sheet, used up)
+  function logRemoval(item: PantryItem, outcome: Exclude<Outcome, "frozen">) {
     update(items.filter((i) => i.id !== item.id));
-    incrementDonatedCount();
+    addHistory([historyEntry(item, outcome)]);
+    setRemoving(null);
     setDonating(null);
-    setError(null);
-    setNotice(`Thanks for donating ${item.name} 💚`);
+    const text = {
+      used: `Nice, you used up the ${item.name}!`,
+      tossed: `Logged ${item.name} as tossed`,
+      donated: `Thanks for donating ${item.name} 💚`,
+    }[outcome];
+    setToast({ text, key: Date.now() });
+  }
+
+  function markDonated(item: PantryItem) {
+    logRemoval(item, "donated");
+  }
+
+  // Quantity edits: reaching 0% means it was used up
+  function changeItem(next: PantryItem) {
+    if (next.quantityPercent <= 0) logRemoval(next, "used");
+    else update(items.map((i) => (i.id === next.id ? next : i)));
+  }
+
+  function resetStats() {
+    setHistory([]);
+    saveHistory([]);
   }
 
   function loadDemo() {
@@ -91,7 +134,13 @@ export default function Home() {
 
   function handleMade(recipe: Recipe): string[] {
     const { next, updated } = applyRecipeMade(items, recipe);
-    update(next);
+    const usedUp = next.filter((i) => i.quantityPercent <= 0);
+    update(next.filter((i) => i.quantityPercent > 0));
+    if (usedUp.length) {
+      addHistory(usedUp.map((i) => historyEntry(i, "used")));
+      const names = usedUp.map((i) => i.name).join(", ");
+      setToast({ text: `Nice, you used up the ${names}!`, key: Date.now() });
+    }
     return updated;
   }
 
@@ -201,8 +250,8 @@ export default function Home() {
                     <ItemCard
                       key={item.id}
                       item={item}
-                      onChange={(next) => update(items.map((i) => (i.id === next.id ? next : i)))}
-                      onDelete={() => update(items.filter((i) => i.id !== item.id))}
+                      onChange={changeItem}
+                      onDelete={() => setRemoving(item)}
                       onDonate={() => setDonating(item)}
                     />
                   ))}
@@ -233,12 +282,40 @@ export default function Home() {
             </div>
           )}
 
+          <div className={tab === "impact" ? "animate-fade-up" : "hidden"}>
+            <ImpactScreen history={history} onReset={resetStats} />
+          </div>
+
           <div className={tab === "settings" ? "animate-fade-up" : "hidden"}>
             <SettingsScreen restrictions={restrictions} onChange={updateRestrictions} onLoadDemo={loadDemo} />
           </div>
         </main>
 
         <TabBar tab={tab} onTab={goTab} scanning={loading} onScan={handleFile} />
+
+        {toast && (
+          <div
+            key={toast.key}
+            role="status"
+            className="animate-fade-up pointer-events-none absolute inset-x-0 bottom-28 z-20 flex justify-center px-6"
+          >
+            <p className="rounded-full bg-stone-900/90 px-4 py-2.5 text-center text-sm font-medium text-white shadow-lg">
+              {toast.text}
+            </p>
+          </div>
+        )}
+
+        {removing && (
+          <RemoveSheet
+            item={removing}
+            onChoose={(outcome) => (outcome === "donated" ? markDonated(removing) : logRemoval(removing, outcome))}
+            onJustDelete={() => {
+              update(items.filter((i) => i.id !== removing.id));
+              setRemoving(null);
+            }}
+            onClose={() => setRemoving(null)}
+          />
+        )}
 
         {donating && (
           <DonateSheet item={donating} onClose={() => setDonating(null)} onDonated={() => markDonated(donating)} />

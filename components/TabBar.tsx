@@ -1,8 +1,8 @@
 "use client";
 
-import { Camera, ChefHat, Refrigerator, Settings } from "lucide-react";
+import { Camera, ChefHat, Refrigerator, Settings, Sprout } from "lucide-react";
 
-export type Tab = "pantry" | "recipes" | "settings";
+export type Tab = "pantry" | "recipes" | "impact" | "settings";
 
 function TabButton({
   active,
@@ -73,6 +73,7 @@ export default function TabBar({
         </div>
 
         <div className="flex flex-1">
+          <TabButton active={tab === "impact"} label="Impact" icon={Sprout} onClick={() => onTab("impact")} />
           <TabButton active={tab === "settings"} label="Settings" icon={Settings} onClick={() => onTab("settings")} />
         </div>
       </div>
